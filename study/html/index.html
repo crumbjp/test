@@ -1,0 +1,387 @@
+ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+ <html lang="ja">
+ <head>
+ <meta http-equiv="content-type" content="text/html; charset=utf-8">
+ <meta http-equiv="content-style-type" content="text/css">
+ <meta http-equiv="content-script-type" content="text/javascript">
+ <meta name="description" content="">
+ <title>TITLE</title>
+ <!--
+ <link rel="stylesheet" type="text/css" media="all" href="http://"></link>
+ -->
+ <style type="text/css">
+ <!--
+ body {
+     font-size: 12px;
+     color: #DDDDDD;
+     font-family:"Lucida Grande",verdana,arial,helvetica,sans-serif;
+     min-width: 950px;
+}
+a {
+    text-decoration: none;
+    /* cursor: pointer; */
+}
+#topmenu  {
+    -moz-border-radius-topleft:10px;
+    -moz-border-radius-topright:10px;
+    font-size:12px;
+    height:28px;
+    padding: 0;
+    position:relative;
+    text-shadow:2px 2px 1px #6374AB;
+    margin:1px 10px 0;
+    background: #D8D8F8 url("top.png") repeat-x center top scroll;
+    color:#FFFFFF;
+}
+#topmenu > div {
+    line-height: 20px;
+    text-shadow:2px 2px 1px #6374AB;
+    margin-right: 6px;
+    padding-top: 5px;
+}
+#topmenu-right {
+    float: right;
+    width: 100px;
+    text-align: right;
+}
+#topmenu-center {
+    float: right;
+    width: 100px;
+}
+#topmenu-left {
+    margin:0 0 0 24px;
+    position:relative;
+}
+#topmenu ul {
+    margin:0;
+    padding:0;
+}
+#topmenu ul > li {
+    float:left;
+    list-style-type:none;
+    white-space:nowrap;
+    margin: 0 10px 6px 0;
+}
+#topmenu li > a {
+    -moz-border-radius:5px 5px 5px 5px;
+    background: #B0B0F8 url("top-a.png") no-repeat 2px center scroll;
+    border-color:#FFFFFF #CFCFCF #CFCFCF #FFFFFF;
+    border-style:solid;
+    border-width:2px 1px 1px 2px;
+    color:#EEEEEE;
+    font-weight:normal;
+    padding:5px 5px 5px 20px;
+    margin-right:0;
+}
+#topmenu li > a:hover {
+    background: #80F080 url("top-a-o.png") no-repeat 2px center scroll;
+}
+#topmenu li > a.t1 {
+    background-image: url("top-t1.png");
+}
+#topmenu li > a.t2 {
+    background-image: url("top-t2.png");
+}
+#topmenu li > a.t3 {
+    background-image: url("top-t3.png");
+}
+#header  {
+    background: #D8D8F8 url("head.png") repeat-x center top scroll;
+    height:90px;
+    padding:2px 0px 0;
+    margin:0 10px;
+    color:#FFFFFF;
+    position: relative;
+}
+#header h1 {
+    margin: 0 48px 0 48px;
+    font-size: 2em;
+    left: 0;
+    top: 0;
+    position: absolute;
+    color: #FFFFFF;
+}
+#header-right {
+    float:right;
+    padding-top:1px;
+    width:300px;
+}
+#header-main {
+    position:absolute;
+    margin: 0 0 0 24px;
+    bottom: 0;
+    left: 0;
+}
+#header-main > ul{
+    margin: 0;
+    padding: 0;
+}
+#header-main > ul > li{
+    float:left;
+    list-style-type:none;
+    margin:0 6px 0 0;
+    padding:0;
+    white-space:nowrap;
+}
+#header-main > ul > li > a {
+    -moz-border-radius-topleft:5px;
+    -moz-border-radius-topright:5px;
+    background: #B0B0F8 url("") no-repeat 2px center scroll;
+    border: 0px solid #CFCFCF;
+    border-width:1px 1px 0px 1px;
+    color:#FFFFFF;
+    display:block;
+    font-weight:bold;
+    padding:4px 8px 6px;
+    margin: 0;
+}
+#header-main > ul > li > a:hover {
+    background: #80F080 url("") no-repeat 2px center scroll;
+}
+
+#main {
+    margin: 0;
+    padding: 0;
+    /* -moz-border-radius:10px 10px 10px 10px; */
+    background: #FEFBFA url("main.png") repeat-y center top scroll;
+    margin:1px 10px 0;
+    overflow: hidden;
+    position:relative;
+}
+#main-area {
+    -moz-border-radius: 5px 5px 5px 5px;
+    border-color:#C0C0E8;
+    border-style:solid;
+    border-width:1px 1px 1px 1px;
+    background: #FEFBFA url("area.png") repeat-y center top scroll;
+    margin: 0 210px;
+    position: relative;
+    min-width: 500px;
+}
+#main-left {
+    float:left;
+    width: 200px;
+}
+#main-left > div {
+    -moz-border-radius: 5px 5px 5px 5px;
+    border-color:#C0C0E8;
+    border-style:solid;
+    border-width:1px 1px 1px 1px;
+    background: #F1F3F4 url("left.png") repeat-x center top scroll;
+    margin-bottom: 5px;
+}
+#main-left > div > h3{
+    margin: 0;
+    padding: 0;
+    border-color:#C0C0E8;
+    border-style:solid;
+    border-width:0px 0px 1px 0px;
+    background: #E0E0F8 url("left-h.png") repeat-x center top scroll;
+    color: #4040C8;
+    height: 16px;
+}
+#main-left > div > ul{
+    margin: 0;
+    padding: 0;
+}
+#main-left > div > ul > li{
+    list-style-type:none;
+    margin:0 6px 0 0;
+    padding:0;
+}
+#main-left > div > ul > li > a {
+    display:block;
+    font-weight:bold;
+    padding:2px 0 2px 20px;
+    margin: 0;
+    color: #202088;
+}
+#main-left > div > ul > li > a:hover {
+    text-decoration: underline;
+}
+#main-left > div > ul > li > a.l1 {
+    background-image: url("main-l1.png");
+}
+#main-left > div > ul > li > a.l2 {
+    background-image: url("main-l2.png");
+}
+#main-left > div > ul > li > a.l3 {
+    background-image: url("main-l3.png");
+}
+#main-left > div > ul > li > a.l4 {
+    background-image: url("main-l4.png");
+}
+#main-left > div > ul > li > a.l5 {
+    background-image: url("main-l5.png");
+}
+#main-right {
+    float:right;
+    width: 200px;
+}
+#main-right > div {
+    -moz-border-radius: 5px 5px 5px 5px;
+    border-color:#C0C0E8;
+    border-style:solid;
+    border-width:1px 1px 1px 1px;
+    background: #F1F3F4 url("right.png") repeat-x center top scroll;
+    margin-bottom: 5px;
+}
+#main-right > div > h3{
+    margin: 0;
+    padding: 0;
+    border-color:#C0C0E8;
+    border-style:solid;
+    border-width:0px 0px 1px 0px;
+    background: #E0E0F8 url("right-h.png") repeat-x center top scroll;
+    color: #4040C8;
+}
+#main-right > div > ul{
+    margin: 0;
+    padding: 0;
+}
+#main-right > div > ul > li{
+    list-style-type:none;
+    margin:0 6px 0 0;
+    padding:0;
+}
+#main-right > div > ul > li > a {
+    display:block;
+    font-weight:bold;
+    padding:2px 0 2px 20px;
+    margin: 0;
+    color: #202088;
+}
+#main-right > div > ul > li > a:hover {
+    text-decoration: underline;
+}
+#main-right > div > ul > li > a.r1 {
+    background-image: url("main-r1.png");
+}
+#main-right > div > ul > li > a.r2 {
+    background-image: url("main-r2.png");
+}
+#main-right > div > ul > li > a.r3 {
+    background-image: url("main-r3.png");
+}
+#main-right > div > ul > li > a.r4 {
+    background-image: url("main-r4.png");
+}
+#main-right > div > ul > li > a.r5 {
+    background-image: url("main-r5.png");
+}
+#footer {
+    position:relative;
+    margin: 0;
+    padding: 0;
+    background: #FEFBFA url("footer.png") repeat-y 2px center scroll;
+    margin:10px 10px 0;
+    border-top: 1px solid #C0C0E8;
+}
+-->
+</style>
+<!--
+<script type="text/javascript" src="js/jquery-1.3.2.js"></script>
+<script language=javascript>
+$(function () {
+});
+</script>
+-->
+</head>
+<body>
+<div id="topmenu">
+ <div id="topmenu-right">topmenu-right</div>
+ <div id="topmenu-center">topmenu-center</div>
+ <div id="topmenu-left">
+  <ul>
+   <li><a class="t1" href="#">topmenu-left-li1</a></li>
+   <li><a class="t2" href="#">topmenu-left-li2</a></li>
+   <li><a class="t3" href="#">topmenu-left-li3</a></li>
+  </ul>
+ </div>
+</div>
+<div id="header">
+ <div id="header-right">header-right</div>
+ <h1>TITLE</h1>
+ <div id="header-main">
+  <ul>
+   <li><a href="#">header-main-li1</a></li>
+   <li><a href="#">header-main-li2</a></li>
+   <li><a href="#">header-main-li3</a></li>
+   <li><a href="#">header-main-li4</a></li>
+   <li><a href="#">header-main-li5</a></li>
+   <li><a href="#">header-main-li6</a></li>
+   <li><a href="#">header-main-li7</a></li>
+   <li><a href="#">header-main-li8</a></li>
+   <li><a href="#">header-main-li9</a></li>
+   <li><a href="#">header-main-li10</a></li>
+   <li><a href="#">header-main-li11</a></li>
+  </ul>
+ </div>
+</div>
+<div id="main">
+ <div id="main-left">
+  <div>
+   <h3>title</h3>
+   <ul>
+    <li><a class="l1" href="#">main-left-li1</a></li>
+    <li><a class="l2" href="#">main-left-li2</a></li>
+    <li><a class="l3" href="#">main-left-li3</a></li>
+    <li><a class="l4" href="#">main-left-li4</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    </ul>
+   </ul>
+  </div>
+  <div>
+   <h3>title</h3>
+   <ul>
+    <li><a class="l1" href="#">main-left-li1</a></li>
+    <li><a class="l2" href="#">main-left-li2</a></li>
+    <li><a class="l3" href="#">main-left-li3</a></li>
+    <li><a class="l4" href="#">main-left-li4</a></li>
+    <li><a class="l5" href="#">main-left-li5</a></li>
+    </ul>
+   </ul>
+  </div>
+ </div>
+ <div id="main-right">
+  <div>
+   <h3>title</h3>
+   <ul>
+    <li><a class="r1" href="#">main-right-li1</a></li>
+    <li><a class="r2" href="#">main-right-li2</a></li>
+    <li><a class="r3" href="#">main-right-li3</a></li>
+    <li><a class="r4" href="#">main-right-li4</a></li>
+    <li><a class="r5" href="#">main-right-li5</a></li>
+    </ul>
+   </ul>
+  </div>
+ </div>
+ <div id="main-area">
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+  <h1>Contants area</h1>
+ </div>
+</div>
+<div id="footer">
+  <h2>Footer area</h2>
+</div>
+</body>
+</html>
