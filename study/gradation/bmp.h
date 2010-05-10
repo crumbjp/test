@@ -136,11 +136,17 @@ struct BMP {
     return *this;
   }
   BMP & set ( int32_t x , int32_t y , const C & c) {
-    return this->set(x,y,getRGB(c));
+    return this->set(x+y*this->bmp->iheader.biWidth,getRGB(c));
+  }
+  BMP & set ( int32_t xy, const C & c) {
+    return this->set(xy,getRGB(c));
   }
   BMP & set ( int32_t x , int32_t y , const tagRGBQUAD & c) {
+    return this->set(x+y*this->bmp->iheader.biWidth,c);
+  }
+  BMP & set ( int32_t xy, const tagRGBQUAD & c) {
     tagRGBQUAD * rgbs = reinterpret_cast<tagRGBQUAD*>(reinterpret_cast<uint8_t *>(this->bmp) + this->bmp->fheader.bfOffBits);
-    rgbs[x+y*this->bmp->iheader.biWidth] = c;
+    rgbs[xy] = c;
     return *this;
   }
   tagRGBQUAD & get ( int32_t x , int32_t y)  {

@@ -7,6 +7,10 @@
  */
 
 #include <iostream>
+#include <ft2build.h>
+#include FT_BITMAP_H
+#include FT_FREETYPE_H
+#include FT_OUTLINE_H
 
 #include "gradation.h"
 
@@ -188,6 +192,29 @@ void gen_font_img (
   img_base.composite(img_font,0,0,Magick::AtopCompositeOp);
 }
 
+struct bmp_data {
+  int b;
+  int l;
+  int w;
+  int h;
+  FT_Bitmap *t;
+};
+void raster_span_func(
+  int       y,
+  int       count,
+  FT_Span*  spans,
+  void*     user ){
+  bmp_data *bd = (bmp_data*)user;
+  //std::cerr << "raster y:" << y << " c:" << count << std::endl;
+  int n = bd->w*bd->h;
+  for ( int i = 0 ; i < count ; i++ ) {
+    int a = n-1-(y+bd->b+1)*bd->w + spans[i].x-bd->l;
+    std::cerr << "raster y:" << y << " x:" << spans[i].x << " l:" << spans[i].len << " c:" << (int)spans[i].coverage << " a:" << a <<std::endl;
+    bd->t->buffer[a] = 0;
+    //spans[i].coverage=128;
+  }
+}
+
 void gradation_handler_proc( 
   buf_t & buf,
   const base_image_params & base,
@@ -199,62 +226,260 @@ void gradation_handler_proc(
 {
   G img_size = base.get_size();
   BMP bmp;
-  gen_base_img (
-    bmp,
-    base.get_size(),
-    base.get_color());
+  // gen_base_img (
+  //   bmp,
+  //   base.get_size(),
+  //   base.get_color());
   
-  gen_gradation_img (
-    bmp,
-    grad1.get_grad_color(),
-    grad1.get_grad_point(),
-    grad1.get_grad_accel(),
-    grad1.get_grad_direction() );
-  gen_gradation_img (
-    bmp,
-    grad2.get_grad_color(),
-    grad2.get_grad_point(),
-    grad2.get_grad_accel(),
-    grad2.get_grad_direction() );
+  // gen_gradation_img (
+  //   bmp,
+  //   grad1.get_grad_color(),
+  //   grad1.get_grad_point(),
+  //   grad1.get_grad_accel(),
+  //   grad1.get_grad_direction() );
+  // gen_gradation_img (
+  //   bmp,
+  //   grad2.get_grad_color(),
+  //   grad2.get_grad_point(),
+  //   grad2.get_grad_accel(),
+  //   grad2.get_grad_direction() );
+
+
+    if (!setlocale(LC_CTYPE, "")) {
+      throw std::logic_error("Cannot set locale !");
+    }
+    FT_Library library;
+    if ( FT_Init_FreeType(&library) ) {
+      throw std::logic_error("Failure : FT_Init_FreeType");
+    }
+    FT_Face face;
+    const char * fontpath = "/usr/share/fonts/vlgothic/VL-Gothic-Regular.ttf";
+    if ( FT_New_Face(library, fontpath, 0, &face) ) {
+      throw std::logic_error("Failure : FT_New_Face");
+    }
+    if (!FT_IS_SCALABLE(face)) {
+      throw std::logic_error("Failure : FT_IS_SCALABLE");
+    }
+    int size = 200;
+    FT_Set_Pixel_Sizes(face, 0, size);
+    if (!face->charmap) {
+      // if the font has no charmap, freetype provides one at
+      // first glyph load. A charmap is needed for correct
+      // target bitmap sizing
+      FT_Load_Glyph(face, 'A', 0);
+    }
+    //const char * text = "fog,あb.r";
+    const char * text = "うあb.r";
+    //const char * text = "f";
+
+    int char_count = mbstowcs(NULL, text, 0);
+    if (char_count == -1) {
+      throw std::logic_error("Failure : invalid multibyte sequence");
+    }
+    std::vector<wchar_t> to_render_buf(char_count + 1);
+    wchar_t *to_render = &to_render_buf[0];
+    mbstowcs(to_render, text, char_count + 1);
+
+    FT_Pos pen = 0;
+    FT_Pos glyph_above = 0;
+    FT_Pos glyph_below = 0;
+    FT_Pos above = 0;
+    FT_Pos below = 0;
+    FT_Pos after_glyph = 0;
+    int prev_glyph = 0;
+    FT_Pos x_start = 0;
+    for (int i = 0; i < char_count; i++) {
+      FT_Pos cur_glyph = FT_Get_Char_Index(face, to_render[i]);
+
+      //if ( FT_Load_Glyph(face, cur_glyph, FT_LOAD_LINEAR_DESIGN) ) {
+      if ( FT_Load_Glyph(face, cur_glyph, FT_LOAD_DEFAULT ) ) {
+        //if ( FT_Load_Glyph(face, cur_glyph, FT_LOAD_DEFAULT | FT_LOAD_FORCE_AUTOHINT ) ) {
+        throw std::logic_error("Failure : FT_Load_Glyph");
+      }
+      if ( i == 0 ) {
+      //   x_start = face->glyph->metrics.horiBearingX;
+      }else{
+        // if(FT_HAS_KERNING(face)) {
+        //   FT_Vector v;
+        //   FT_Get_Kerning(face, cur_glyph, prev_glyph, 0, &v);
+        //   std::cerr << "kerning x:" << v.x << " y:" << v.y << std::endl;
+        // }
+      }
+      if ( face->glyph->format == FT_GLYPH_FORMAT_OUTLINE){
+        // // Bold
+        // FT_Outline_Embolden(&face->glyph->outline, 1000);
+        // // Itaric
+        // FT_Matrix matrix;
+        // matrix.xx = 0x10000;
+        // matrix.xy = 0x5800;
+        // matrix.yx = 0;
+        // matrix.yy = 0x10000;
+        // FT_Outline_Transform(&face->glyph->outline, &matrix);
+      }
+      int baseline = (face->glyph->metrics.height-face->glyph->metrics.horiBearingY)/64;
+      int height = face->glyph->metrics.height/64;
+      int width  = face->glyph->metrics.width/64;
+      int left = face->glyph->metrics.horiBearingX/64;
+      
+//      if ( FT_Render_Glyph(face->glyph, FT_RENDER_MODE_MONO) ) {
+      if ( FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL) ) {
+        throw std::logic_error("Failure : FT_Render_Glyph");
+      }
+      FT_Bitmap &bitmap = face->glyph->bitmap;
+
+      // FT_Bitmap bitmap;
+      // FT_Bitmap_New(&bitmap);
+      // bitmap.width=face->glyph->bitmap.width;
+      // bitmap.rows=face->glyph->bitmap.rows;
+      // bitmap.pitch=face->glyph->bitmap.pitch;
+      // bitmap.pixel_mode=FT_PIXEL_MODE_GRAY;
+      // bitmap.num_grays=256;
+      // std::vector<unsigned char> bmp_buf(bitmap.width*bitmap.rows);
+      // bitmap.buffer=&bmp_buf[0];
+      // FT_Outline_Get_Bitmap(library,&face->glyph->outline,&bitmap);
+      bmp_data bd;
+      bd.h = height;
+      bd.w = width;
+      bd.l = left;
+      bd.b = baseline;
+      bd.t = &bitmap;
+      FT_Raster_Params  params;
+      params.flags      = ft_raster_flag_aa | ft_raster_flag_direct;
+      params.gray_spans = (FT_Raster_Span_Func)raster_span_func;
+      params.target = &bitmap;
+      params.source = &face->glyph->outline;
+      params.user       = &bd;
+      if ( FT_Outline_Render( library, &face->glyph->outline, &params ) ) {
+        throw std::logic_error("Failure : FT_Outline_Render");
+      }
+      std::cerr << "bwidth " << bitmap.width << std::endl;
+      std::cerr << "mwidth " << width << std::endl;
+      std::cerr << "mrows " << height << std::endl;
+//    std::cerr << "bearingY " << face->glyph->metrics.horiBearingY << std::endl;
+      std::cerr << "baseline " << baseline << std::endl;
+      std::cerr << "bleft " << face->glyph->bitmap_left << std::endl;
+      std::cerr << "btop " << face->glyph->bitmap_top << std::endl;
+      std::cerr << "badb " << face->glyph->advance.x/64 << std::endl;
+      std::cerr << "out_contours " << face->glyph->outline.n_contours << std::endl;
+      std::cerr << "out_points " << face->glyph->outline.n_points << std::endl;
+      // glyph_above = face->glyph->metrics.horiBearingY;
+      // glyph_below = face->glyph->metrics.height - glyph_above;
+      // if (glyph_above > above) above = glyph_above;
+      // if (glyph_below > below) below = glyph_below;
+      // after_glyph = pen + face->glyph->metrics.width + face->glyph->metrics.horiBearingX;
+      // pen += face->glyph->advance.x;
+      // prev_glyph = cur_glyph;
+    bmp.resize(bitmap.width,bitmap.rows);
+    int npixels = bitmap.width*bitmap.rows;
+    for(int r=0;r<npixels;r++){
+      //std::cerr << "***********" << std::endl;
+      //std::cerr << bitmap.buffer[r] << std::endl;
+      tagRGBQUAD rgb;
+      rgb.rgbBlue = 0;
+      rgb.rgbGreen = 0;
+      rgb.rgbRed = 0;
+      if ( bitmap.buffer[r] & 0xff ) {
+        rgb.rgbBlue = bitmap.buffer[r] & 0xff;
+        rgb.rgbGreen = bitmap.buffer[r] & 0xff;
+        rgb.rgbRed = bitmap.buffer[r] & 0xff;
+        // if ( bitmap.buffer[r] != 0xff ) {
+        //   rgb.rgbRed = 0;
+        // }
+      }
+      if ( bitmap.buffer[r] & 0x1 ) {
+        //std::cerr << bitmap.buffer[r] << std::endl;
+//        rgb.rgbGreen = 0;
+      }
+      if ( bitmap.buffer[r] & 0x2 ) {
+//        rgb.rgbGreen = 0;
+      }
+      if ( bitmap.buffer[r] & 0x4 ) {
+        //rgb.rgbBlue = 0;
+      }
+      if ( bitmap.buffer[r] & 0x8 ) {
+//        rgb.rgbGreen = 0;
+      }
+      if ( bitmap.buffer[r] & 0xf0 ) {
+//        rgb.rgbGreen = 0;
+      }
+      if ( (bitmap.rows-1-r/bitmap.width) == (face->glyph->metrics.height-face->glyph->metrics.horiBearingY)/64 ){
+        rgb.rgbRed = 128;
+        rgb.rgbGreen = 128;
+        rgb.rgbBlue = 128;
+      }
+//      bmp.set(r,rgb);
+      bmp.set(r%bitmap.width,bitmap.rows-1-r/bitmap.width,rgb);
+    }
+    // tagRGBQUAD rgb;
+    // rgb.rgbRed=255;
+    // rgb.rgbBlue=0;
+    // rgb.rgbGreen=0;
+    // for( int o = 0 ; o < face->glyph->outline.n_points ; o++ ) {
+    //   bmp.set(face->glyph->outline.points[o].x/64,face->glyph->outline.points[o].y/64,rgb);
+    // //   std::cerr << "out (" << face->glyph->outline.points[o].x/64<<","<<face->glyph->outline.points[o].y/64<<")" << std::endl;
+    // }
+    break;
+    
+    }
+
+    // int width = (after_glyph - x_start)/64;
+    // int height = (above+below)/64;
+    // std::cerr << "after " << after_glyph << std::endl;
+    // std::cerr << "x_start " << x_start << std::endl;
+    // std::cerr << "above " << above << std::endl;
+    // std::cerr << "below " << below << std::endl;
+    // std::cerr << "width " << width << std::endl;
+    // std::cerr << "height " << height << std::endl;
+
+    
+
+
+
+    //bmp.resize(width,height);
+    //bmp.load(bitmap);
+    // std::cerr << "size " << bmp.size() << std::endl;
+
+
+
 
   Magick::Image img_base(Magick::Geometry(1,1),Magick::Color(0,0,0));
   Magick::Blob in(bmp.bmp,bmp.size());
   img_base.read(in,img_size.get(),"BMP");
 
-  if ( font.get_name()) {
-    if ( font.get_shadow() != NO_SHADOW ) {
-      gen_font_img(
-        img_base,
-        font.get_string(),
-        font.get_name(),
-        font.get_size(),
-        font.get_point() + font.get_shadow_point(),
-        font.get_line_width(),
-        font.get_color(),
-        font.get_fill_color(),
-        font.q_grad_parms.get_grad_color(),
-        font.q_grad_parms.get_grad_point(),
-        font.q_grad_parms.get_grad_accel(),
-        font.q_grad_parms.get_grad_direction(),
-        font.get_shadow_blur()
-        );
-    }
-    gen_font_img(
-      img_base,
-      font.get_string(),
-      font.get_name(),
-      font.get_size(),
-      font.get_point(),
-      font.get_line_width(),
-      font.get_color(),
-      font.get_fill_color(),
-      font.q_grad_parms.get_grad_color(),
-      font.q_grad_parms.get_grad_point(),
-      font.q_grad_parms.get_grad_accel(),
-      font.q_grad_parms.get_grad_direction(),
-      font.get_blur()
-      );
-  }
+  // if ( font.get_name()) {
+  //   if ( font.get_shadow() != NO_SHADOW ) {
+  //     gen_font_img(
+  //       img_base,
+  //       font.get_string(),
+  //       font.get_name(),
+  //       font.get_size(),
+  //       font.get_point() + font.get_shadow_point(),
+  //       font.get_line_width(),
+  //       font.get_color(),
+  //       font.get_fill_color(),
+  //       font.q_grad_parms.get_grad_color(),
+  //       font.q_grad_parms.get_grad_point(),
+  //       font.q_grad_parms.get_grad_accel(),
+  //       font.q_grad_parms.get_grad_direction(),
+  //       font.get_shadow_blur()
+  //       );
+  //   }
+  //   gen_font_img(
+  //     img_base,
+  //     font.get_string(),
+  //     font.get_name(),
+  //     font.get_size(),
+  //     font.get_point(),
+  //     font.get_line_width(),
+  //     font.get_color(),
+  //     font.get_fill_color(),
+  //     font.q_grad_parms.get_grad_color(),
+  //     font.q_grad_parms.get_grad_point(),
+  //     font.q_grad_parms.get_grad_accel(),
+  //     font.q_grad_parms.get_grad_direction(),
+  //     font.get_blur()
+  //     );
+  // }
   
   Magick::Blob out;
   img_base.write( &out , "PNG" );
@@ -270,11 +495,12 @@ void gradation_handler_proc(
   string2 : x,y,font,size,string,color1,color2,shadow,shadow-color,line-under,line-over,line-through
   string3 : x,y,font,size,string,color1,color2,shadow,shadow-color,line-under,line-over,line-through
  */
+
+
 #include <fstream>
 int main(int argc,char *argv[]) {
   try { 
     std::vector<unsigned char> buf;
-
     // gradation_handler_proc(
     //   buf,
     //   base_image_params ( 
