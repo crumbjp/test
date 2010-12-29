@@ -32,6 +32,7 @@ GetOptions(
 	   ) or pod2usage( -verbose => 0 , -exitval => 1 );
 my $dname_dst=$dname.".dst";
 system("mkdir -p $dname_dst");
+
 opendir(my $DIR,$dname);
 while (my $f = readdir($DIR)){
     if ( $f =~ /(\d+)\.wav/ ) {
@@ -39,30 +40,24 @@ while (my $f = readdir($DIR)){
 	last;
     }
 }
+fproc("English1.dst/036-00.wav","036");
 
 sub fproc {
     my ($fname,$number)=@_;
+    print "=== $fname === \n";
     open(my $FILE,"<$fname");
     binmode $FILE;
     # header
-    my $riff="";
-    my $riff_size=0;
-    my $wave="";
-    my $fmt="";
-    my $fmt_size=0;
-    my $fmt_data="";
-    my $data="";
-    my $data_size=0;
-    read($FILE,$riff,4);
-    read($FILE,$riff_size,4);
+    read($FILE,my $riff,4);
+    read($FILE,my $riff_size,4);
     $riff_size = unpack("L",$riff_size);
-    read($FILE,$wave,4);
-    read($FILE,$fmt,4);
-    read($FILE,$fmt_size,4);
+    read($FILE,my $wave,4);
+    read($FILE,my $fmt,4);
+    read($FILE,my $fmt_size,4);
     $fmt_size = unpack("L",$fmt_size);
-    read($FILE,$fmt_data,$fmt_size);
-    read($FILE,$data,4);
-    read($FILE,$data_size,4);
+    read($FILE,my $fmt_data,$fmt_size);
+    read($FILE,my $data,4);
+    read($FILE,my $data_size,4);
     $data_size = unpack("L",$data_size);
     print $riff."\n";
     print $riff_size."\n";
@@ -78,6 +73,76 @@ sub fproc {
     print $fmt_bit."\n";
     print $data."\n";
     print $data_size."\n";
+    
+    if ( $fmt_ch != 2 ) {
+	die "Not supported ! FMT_CH:$fmt_ch";
+    }
+    if ( $fmt_sample != 48000 ) {
+	die "Not supported ! FMT_SAMPLE:$fmt_sample";
+    }
+    if ( $fmt_byte != 192000 ) {
+	die "Not supported ! FMT_BYTE:$fmt_byte";
+    }
+    if ( $fmt_block != 4 ) {
+	die "Not supported ! FMT_BLOCK:$fmt_block";
+    }
+    if ( $fmt_bit != 16 ) {
+	die "Not supported ! FMT_BIT:$fmt_bit";
+    }
+    my $done = 0;
+    my $avg=0;
+    my $AVG_TERM=4800;
+    my $avg_count=0;
+    my $sec=0;
+    my $zero_range=0;
+    my @range_data=();
+    my $fcount=0;
+    while ( $done < $data_size ) {
+	my $DATA;
+	read($FILE,$DATA,4);
+	$done += 4;
+	my ($ch1,$ch2) = unpack("s s",$DATA);
+	push(@range_data,$ch1);
+	push(@range_data,$ch2);
+	my $avg += ($ch1+$ch2)/2;
+	$avg_count++;
+	if ( $avg_count == $AVG_TERM ) {
+	    if ( ! ( $avg > 50 or $avg < -50) ) {
+		$avg = 0;
+		$zero_range++;
+		if ( $zero_range >= 6 ) {
+		    if ( $zero_range == 6 ) {
+			print "=== ".sprintf("- %s-%02d.wav",$number,$fcount)."=== \n";
+			my $S = @range_data;
+			$S *= 2;
+			open(my $OUT,sprintf(">%s/%s-%02d.wav",$dname_dst,$number,$fcount));
+			syswrite($OUT,$riff,4);
+			syswrite($OUT,pack("L",$S+36),4); # riff size ( data size - 36 )
+			syswrite($OUT,$wave,4);
+			syswrite($OUT,$fmt,4);
+			syswrite($OUT,pack("L",$fmt_size),4);
+			syswrite($OUT,$fmt_data,$fmt_size);
+			syswrite($OUT,$data,4);
+			syswrite($OUT,pack("L",$S),4);  # data size
+			foreach my $d (@range_data) {
+			    syswrite($OUT,pack("s",$d),2);
+			}
+			close($OUT);
+			$fcount++;
+		    }
+		    @range_data=();
+		}
+	    }else{
+		$zero_range=0;
+	    }
+	    my $S = @range_data;
+	    printf("%03.1f (%d) : %d (%d) \n",$sec,$zero_range,$avg,$S);
+	    $sec += 0.1;
+	    $avg_count=0;
+	    $avg=0;
+	}
+    }
+
     close($FILE);
 }
 
