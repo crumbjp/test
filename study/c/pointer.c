@@ -34,6 +34,9 @@ void q2(){
   printf("%08x != %08x\n",i,j);
 }
 
+// char i[10][10];
+// different from 
+// char *i[10];
 
 int main ( int argc , char * argv[] ){
   q1();
