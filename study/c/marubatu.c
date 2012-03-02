@@ -39,6 +39,7 @@ void proc(const char *in){
   // judge_end();
 }
 
+// http://uguisu.skr.jp/othello/6-1.html
 const char * com(){
   return '';
 }
