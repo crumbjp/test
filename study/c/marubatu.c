@@ -38,8 +38,14 @@ void proc(const char *in){
   // turn();
   // judge_end();
 }
+
+const char * com(){
+  return '';
+}
+
 void cui(){
   while(1){
+    //
     view();
 
     char buf[BUFSIZ];
@@ -50,6 +56,12 @@ void cui(){
     }
     
     proc(input);
+    
+    view();
+    const char * comref = com();
+
+    proc(comref);
+
   }
 }
 
