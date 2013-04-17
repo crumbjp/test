@@ -1,3 +1,19 @@
+[GITHUB]
+https://github.com/crumbjp/test/tree/master/study/mongo
+
+-----------------------------------------------------------------------------------------------
+Working set analyzer
+
+[mincore]			     
+http://www.slideshare.net/crumbjp/why-mincore-returns-different-value-of-stat
+
+
+db.serverStatus()
+db.serverStatus({workingSet:1})
+
+db.serverStatus().mem
+db.serverStatus({workingSet:1}).workingSet
+
 
 
 -----------------------------------------------------------------------------------------------
