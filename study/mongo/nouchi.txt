@@ -1,6 +1,8 @@
 [GITHUB]
 https://github.com/crumbjp/test/tree/master/study/mongo
 
+http://d.hatena.ne.jp/hiroppon/20130327/1364345651
+
 -----------------------------------------------------------------------------------------------
 Working set analyzer
 
@@ -148,7 +150,7 @@ db.t1.stats()
 
 でも実際はレコード有無を調べて insert / update を切り替えるのは面倒くさいので upsertしたいが
 
-db.t1.({_id : "cart_id_1"},{
+db.t1.update({_id : "cart_id_1"},{
   _id : "cart_id_1",			 
   user_id: "<ユーザID>",		 
   user_name: "crumb.jp",		 
@@ -162,16 +164,16 @@ db.t1.({_id : "cart_id_1"},{
 では上書きしてしまう。
 そこで $setOnInsert
 
-db.t1.({_id : "cart_id_1"},{
-  _id : "cart_id_1",			 
-  user_id: "<ユーザID>",		 
-  user_name: "crumb.jp",
+db.t1.update({_id : "cart_id_1"},{
   $setOnInsert: {
     items : "                                         ",					 
     payment : "                                       ",
     address: "                                                                               ",				 
     state: "      "
-  }
+  },
+  $set : {
+	  user_id: "<ユーザID>",		 
+	  user_name: "crumb.jp"}
 },
 {upsert:1})
 
