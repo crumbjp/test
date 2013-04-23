@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-my $NUM = 10000;
+my $NUM = 1000;
 for ( my $f = 0 ; $f <= 9 ; $f++ ) {
     open ( my $FP , '>massive'.$f.'.js');
     for ( my $i = $f*$NUM +1 ; $i <= $f*$NUM + $NUM; $i++ ) {
