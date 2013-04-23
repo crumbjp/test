@@ -4,7 +4,7 @@ use warnings;
 
 my $NUM = 10000;
 for ( my $f = 0 ; $f <= 9 ; $f++ ) {
-    open ( my $FP , '>large'.$f.'.js');
+    open ( my $FP , '>extra'.$f.'.js');
     for ( my $i = $f*$NUM +1 ; $i <= $f*$NUM + $NUM; $i++ ) {
 	my $LINE = '{' .
 	    '"_id":'.$i.','.
