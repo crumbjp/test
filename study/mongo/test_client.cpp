@@ -220,7 +220,7 @@ struct insert_test :  thread_test {
     : thread_test(nthreads),
       num(num) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
 
     value9 = "";
     for ( int i = 380 ; i < size ; i++ ) {
@@ -281,7 +281,7 @@ struct ensure_test :  thread_test {
     : thread_test(1),
       fieldname(fieldname) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
 
     string errmsg;
     if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
@@ -305,7 +305,7 @@ struct update_test :  thread_test {
       fieldname(fieldname),
       value(value) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
 
     string errmsg;
     if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
@@ -370,7 +370,7 @@ struct query_test :  query_base_test {
   query_test( string fieldname , int value , int nthreads = 1 )
     : query_base_test(fieldname,nthreads),value(value) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
   }
   virtual ~query_test() {
   }
@@ -393,7 +393,7 @@ struct query_in_test :  query_base_test {
   query_in_test( string fieldname , int nthreads = 1 )
     : query_base_test(fieldname,nthreads) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
   }
   virtual ~query_in_test() {
   }
@@ -421,7 +421,7 @@ struct query_range_test :  query_base_test {
     : query_base_test(fieldname,nthreads),
       num(num) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
   }
   virtual base_args * getarg(int n){
     return new query_range_args(
@@ -441,12 +441,9 @@ struct conn_test :  thread_test {
     : thread_test(nthreads),
       num(num){
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
   }
   virtual ~conn_test() {
-  }
-  virtual base_args * getarg(int n){
-    return new query_in_args();
   }
   virtual void test( base_args * arg ) {
     for ( int i = 0 ; i < num ; i++ ){
@@ -455,6 +452,32 @@ struct conn_test :  thread_test {
         DBClientConnection conn;
         string errmsg;
         conn.setSoTimeout(1);
+        if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
+          cout << " : Couldn't connect : " << errmsg << endl;
+        }
+        BSONObj obj = conn.findOne( NS ,BSON( "_id" << i ));
+      }catch(...){
+      }
+    }
+  }
+};
+struct conn_pool_test :  thread_test {
+  int num;
+  conn_pool_test( int num, int nthreads = 1 )
+    : thread_test(nthreads),
+      num(num){
+    int status;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+  }
+  virtual ~conn_pool_test() {
+  }
+  virtual void test( base_args * arg ) {
+    DBClientConnection conn;
+    string errmsg;
+    conn.setSoTimeout(1);
+    for ( int i = 0 ; i < num ; i++ ){
+      try { 
+        arg->progres = i;
         if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
           cout << " : Couldn't connect : " << errmsg << endl;
         }
@@ -500,10 +523,14 @@ int main ( int argc , char * argv[]  ){
     insert_test i(NDOCS,DOCSIZE,NTHREADS);
     i.start();
   }
-//  {
-//    conn_test c(NDOCS,50);
-//    c.start();
-//  }
+  // {
+  //   conn_test c(NDOCS,THREAD_MAX);
+  //   c.start();
+  // }
+  // {
+  //   conn_pool_test c(NDOCS,THREAD_MAX);
+  //   c.start();
+  // }
   {
     insert_test i(NDOCS,DOCSIZE);
     i.start();
@@ -541,11 +568,11 @@ int main ( int argc , char * argv[]  ){
     q.start();
   }
   {
-    query_in_test q("value1",10);
+    query_in_test q("value1",NTHREADS);
     q.start();
   }
   {
-    query_in_test q("value1",50);
+    query_in_test q("value1",THREAD_MAX);
     q.start();
   }
   {
@@ -557,11 +584,11 @@ int main ( int argc , char * argv[]  ){
     r.start();
   }
   {
-    query_range_test r("_id",NDOCS,10);
+    query_range_test r("_id",NDOCS,NTHREADS);
     r.start();
   }
   {
-    query_range_test r("_id",NDOCS,50);
+    query_range_test r("_id",NDOCS,THREAD_MAX);
     r.start();
   }
 }
