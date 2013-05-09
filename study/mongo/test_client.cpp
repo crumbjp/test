@@ -154,27 +154,40 @@ struct thread_test {
   }
   static void * dump_handler(void *a){
     thread_test *THIS = (thread_test*)a;
+    int  linecount = 0;
+    bool lineflg = false;
     for ( vector<base_args *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
             it != itend;
             it++ ){
-      cout << endl;
+      if ( lineflg ) {
+        linecount++;
+        cout << endl;
+      }
+      lineflg ^= true;
     }
+    linecount++;
+    cout << endl;
     while (!THIS->fin){
       sleep(1);
-      cout << "\033[" << THIS->args.size() << "A\r" << fflush;
+      cout << "\033[" << linecount << "A\r";
+      lineflg = false;
       for ( vector<base_args *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
             it != itend;
             it++ ){
-        cout << "\033[2K\r" << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->progres << endl;
+        //cout << "\033[2K\r" << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->progres << fflush;
+        cout << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->progres << fflush;
+        if ( lineflg ) {
+          cout << endl << "\033[2K\r";
+        }
+        lineflg ^= true;
       }
+      cout << endl;
     }
-    cout << "\033[" << THIS->args.size() << "A\r" << fflush;
-    for ( vector<base_args *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
-            it != itend;
-            it++ ){
+    cout << "\033[" << linecount << "A\r" << fflush;
+    for ( int i = 0 ; i < linecount ; i++ ) {
       cout << "\033[2K\r" << endl;
     }
-    cout << "\033[" << THIS->args.size() << "A\r" << fflush;
+    cout << "\033[" << linecount << "A\r" << fflush;
     return 0;
   }
   static void * test_handler(void *a){
