@@ -21,6 +21,9 @@
 using namespace std;
 using namespace mongo;
 
+static const int DIV_BASE   = 2500;
+static const int THREAD_MAX = 100;
+
 const char *CONNECT_TO = "localhost:27017";
 const char *NS         = "test.test";
 int  NTHREADS    = 10;
@@ -87,24 +90,24 @@ pidst pidstat(pid_t pid ) {
   return ret;
 }
 
-template <typename ARGTYPE>
+struct thread_test;
+
+struct base_args {
+  thread_test *THIS;
+  DBClientConnection conn;
+  int progres;
+  int n;
+  base_args( )
+    :THIS(0),progres(0),n(n){
+  }
+};
+
 struct thread_test {
   bool fin;
   pthread_cond_t  cond;
   pthread_mutex_t mutex;
   int nthreads;
-  struct arg_t {
-    thread_test<ARGTYPE> *THIS;
-    int i;
-    int n;
-    ARGTYPE *arg;
-    arg_t(thread_test<ARGTYPE> *THIS,
-          int n ,
-          ARGTYPE *arg )
-      :THIS(THIS),i(0),n(n),arg(arg){
-    }
-  };
-  vector<arg_t*> args;
+  vector<base_args*> args;
   thread_test( int nthreads = 1 )
     : fin(false),
       nthreads(nthreads) {
@@ -112,25 +115,25 @@ struct thread_test {
       pthread_mutex_init(&mutex,0);
     }
   virtual ~thread_test(){
-    for ( typename vector<arg_t *>::iterator it(args.begin()),itend(args.end());
+    for ( vector<base_args *>::iterator it(args.begin()),itend(args.end());
           it != itend;
           it++ ){
-      delete (*it)->arg;
       delete *it;
     }
   }
-  virtual ARGTYPE * getarg(int n) = 0;
-  virtual void prepare( int n , ARGTYPE * arg) {};
-  virtual void test( int n , ARGTYPE * arg , int &ai ) = 0;
+  virtual base_args * getarg(int n) {
+    return new base_args();
+  }
+  virtual void prepare( base_args * arg) {};
+  virtual void test( base_args * arg ) = 0;
   virtual void finish(pidst diff) {};
   void start(){
     pthread_t th[nthreads];
     pthread_t dth;
     for ( int i = 0 ; i < nthreads ; i++ ) {
-      arg_t *a = new arg_t(
-        this,
-        i,
-        this->getarg(i));
+      base_args *a = this->getarg(i);
+      a->n = i;
+      a->THIS = this;
       args.push_back(a);
       pthread_create(&th[i],0,test_handler,(void*)a);
     }
@@ -150,8 +153,8 @@ struct thread_test {
     finish(diff);
   }
   static void * dump_handler(void *a){
-    thread_test<ARGTYPE> *THIS = (thread_test<ARGTYPE>*)a;
-    for ( typename vector<arg_t *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
+    thread_test *THIS = (thread_test*)a;
+    for ( vector<base_args *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
             it != itend;
             it++ ){
       cout << endl;
@@ -159,14 +162,14 @@ struct thread_test {
     while (!THIS->fin){
       sleep(1);
       cout << "\033[" << THIS->args.size() << "A\r" << fflush;
-      for ( typename vector<arg_t *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
+      for ( vector<base_args *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
             it != itend;
             it++ ){
-        cout << "\033[2K\r" << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->i << endl;
+        cout << "\033[2K\r" << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->progres << endl;
       }
     }
     cout << "\033[" << THIS->args.size() << "A\r" << fflush;
-    for ( typename vector<arg_t *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
+    for ( vector<base_args *>::iterator it(THIS->args.begin()),itend(THIS->args.end());
             it != itend;
             it++ ){
       cout << "\033[2K\r" << endl;
@@ -175,12 +178,12 @@ struct thread_test {
     return 0;
   }
   static void * test_handler(void *a){
-    arg_t * arg = (arg_t*)a;
+    base_args * arg = (base_args*)a;
     try { 
-      arg->THIS->prepare(arg->n,arg->arg);
+      arg->THIS->prepare(arg);
       pthread_cond_wait(&arg->THIS->cond,&arg->THIS->mutex);
       pthread_mutex_unlock(&arg->THIS->mutex);
-      arg->THIS->test(arg->n,arg->arg,arg->i);
+      arg->THIS->test(arg);
     }catch(...){
       cout << arg->n << " : Fatal error !" << endl;
     }
@@ -188,9 +191,6 @@ struct thread_test {
   }
 };
 
-struct base_args {
-  DBClientConnection conn;
-};
 
 struct insert_args : base_args {
   int from;
@@ -203,20 +203,21 @@ struct insert_args : base_args {
                  int div1  ,
                  int div2  ,
                  const char * value9)
-    :from  (from  ),
-     to    (to    ),
-     div1  (div1  ),
-     div2  (div2  ),
-     value9(value9){
+    : base_args(),
+      from  (from  ),
+      to    (to    ),
+      div1  (div1  ),
+      div2  (div2  ),
+      value9(value9){
   }
 };
 
-struct insert_test :  thread_test<insert_args> {
+struct insert_test :  thread_test {
   string value9;
   DBClientConnection conn;
   int num;                 
   insert_test( int num, int size , int nthreads = 1 )
-    : thread_test<insert_args>(nthreads),
+    : thread_test(nthreads),
       num(num) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
@@ -233,23 +234,24 @@ struct insert_test :  thread_test<insert_args> {
   }
   virtual ~insert_test() {
   }
-  virtual insert_args * getarg(int n){
+  virtual base_args * getarg(int n){
     return new insert_args(
       (num/nthreads)*n,
       (num/nthreads)*(n+1),
-      2500,
-      num/2500,
+      DIV_BASE,
+      num/DIV_BASE,
       value9.c_str());
   }
-  virtual void prepare(int n,insert_args * arg) {
+  virtual void prepare(base_args * arg) {
     string errmsg;
     if ( ! arg->conn.connect( CONNECT_TO , errmsg ) ) {
       cout << " : Couldn't connect : " << errmsg << endl;
     }
   }
-  virtual void test( int n , insert_args * arg , int &ai ) {
+  virtual void test( base_args * a ) {
+    insert_args * arg = (insert_args*)a;
     for ( int i = arg->from ; i < arg->to ; i++ ){
-      ai = i;
+      arg->progres = i;
       arg->conn.insert( NS ,
                         BSON( "_id" << i << 
                               "value0" << i << 
@@ -272,11 +274,11 @@ struct insert_test :  thread_test<insert_args> {
 };
 
 
-struct ensure_test :  thread_test<base_args> {
+struct ensure_test :  thread_test {
   DBClientConnection conn;
   string fieldname;
   ensure_test( string fieldname )
-    : thread_test<base_args>(1),
+    : thread_test(1),
       fieldname(fieldname) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
@@ -288,21 +290,18 @@ struct ensure_test :  thread_test<base_args> {
   }
   virtual ~ensure_test() {
   }
-  virtual base_args * getarg(int n){
-    return 0;
-  }
-  virtual void test( int n , base_args * arg , int &ai ) {
+  virtual void test( base_args * arg ) {
     conn.ensureIndex( NS , BSON( fieldname.c_str() << 1 ));
   }
 };
 
 template <typename VALTYPE>
-struct update_test :  thread_test<base_args> {
+struct update_test :  thread_test {
   DBClientConnection conn;
   string fieldname;
   VALTYPE value;
   update_test( string fieldname,VALTYPE value)
-    : thread_test<base_args>(1),
+    : thread_test(1),
       fieldname(fieldname),
       value(value) {
     int status;
@@ -315,81 +314,153 @@ struct update_test :  thread_test<base_args> {
   }
   virtual ~update_test() {
   }
-  virtual base_args * getarg(int n){
-    return 0;
-  }
-  virtual void test( int n , base_args * arg , int &ai ) {
+  virtual void test( base_args * arg ) {
     conn.update( NS , BSONObj() ,BSON( "$set" << BSON(fieldname << value) ),false,true);
   }
 };
 
-struct query_args : base_args {
+struct query_base_args : base_args {
   long long totalsize;
   long long count;
-  int value;
-  query_args(int value) : totalsize(0),count(0),value(value){}
+  query_base_args() : totalsize(0),count(0){}
 };
-
-struct query_test :  thread_test<query_args> {
+struct query_base_test : thread_test {
   string fieldname;
-  query_test( string fieldname , int nthreads = 1 )
-    : thread_test<query_args>(nthreads),
+  query_base_test( string fieldname , int nthreads = 1 )
+    : thread_test(nthreads),
       fieldname(fieldname) {
-    int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
   }
-  virtual ~query_test() {
+  virtual ~query_base_test() {
   }
-  virtual query_args * getarg(int n){
-    return new query_args(n);
-  }
-  virtual void prepare(int n,query_args * arg) {
+  virtual void prepare(base_args * arg) {
     string errmsg;
     if ( ! arg->conn.connect( CONNECT_TO , errmsg ) ) {
       cout << " : Couldn't connect : " << errmsg << endl;
     }
   }
-  virtual void test( int n , query_args * arg , int &ai ) {
-    auto_ptr<DBClientCursor> cursor = arg->conn.query( NS ,BSON( fieldname << arg->value ));
+  virtual BSONObj gen_query(query_base_args * a) = 0;
+
+  virtual void test( base_args * a ) {
+    query_base_args * arg = (query_base_args*)a;
+    auto_ptr<DBClientCursor> cursor = arg->conn.query( NS , gen_query(arg));
     while ( cursor->more() ) {
       arg->count++;
       BSONObj obj = cursor->next();
       arg->totalsize += obj.objsize();
-      ai = (int)arg->count;
+      arg->progres = (int)arg->count;
     }
-  }
+  }  
+
   virtual void finish(pidst diff) {
     long long count = 0L;
     long long totalsize = 0L;
-    for ( vector<arg_t *>::iterator it(args.begin()),itend(args.end());
+    for ( vector<base_args *>::iterator it(args.begin()),itend(args.end());
             it != itend;
             it++ ){
       // cout << setw(10) <<(*it)->n << ": COUNT: " << (*it)->arg->count << "( " << (*it)->arg->count / (diff.timestamp/1000000.0) << ") , TOTAL_SIZE : " << (*it)->arg->totalsize  << " (" << (*it)->arg->totalsize / (diff.timestamp/1000000.0)<< ")" << endl;
-      count += (*it)->arg->count;
-      totalsize += (*it)->arg->totalsize;
+      count += ((query_base_args*)(*it))->count;
+      totalsize += ((query_base_args*)(*it))->totalsize;
     }
     cout << setw(10) << "ALL" << ": COUNT: " << count << "( " << count / (diff.timestamp/1000000.0) << ") , TOTAL_SIZE : " << totalsize << " (" << totalsize / (diff.timestamp/1000000.0) << ")" << endl;
   }
 };
 
-struct random_test :  query_test {
+struct query_test :  query_base_test {
+  int value;
+  query_test( string fieldname , int value , int nthreads = 1 )
+    : query_base_test(fieldname,nthreads),value(value) {
+    int status;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+  }
+  virtual ~query_test() {
+  }
+  virtual base_args * getarg(int n){
+    return new query_base_args();
+  }
+  virtual BSONObj gen_query(query_base_args * a) {
+    return BSON( fieldname << value);
+  }
+};
+
+
+struct query_in_args : query_base_args {
+  vector<int> values;
+  query_in_args() : query_base_args() {}
+};
+
+
+struct query_in_test :  query_base_test {
+  query_in_test( string fieldname , int nthreads = 1 )
+    : query_base_test(fieldname,nthreads) {
+    int status;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+  }
+  virtual ~query_in_test() {
+  }
+  virtual base_args * getarg(int n){
+    query_in_args * a = new query_in_args();
+    for ( int i = 0 ; i < (THREAD_MAX / nthreads); i++ ) {
+      a->values.push_back(n * (THREAD_MAX / nthreads) + i);
+    }
+    return a;
+  }
+  virtual BSONObj gen_query(query_base_args * a) {
+    query_in_args * arg = (query_in_args*) a;
+    return BSON( fieldname << BSON("$in" << arg->values) );
+  }
+};
+
+struct query_range_args : query_base_args {
+  int from;
+  int to;
+  query_range_args(int from,int to) : from(from),to(to){}
+};
+struct query_range_test :  query_base_test {
   int num;
-  random_test( string fieldname , int num, int nthreads = 1 )
-    : query_test(fieldname,nthreads),
+  query_range_test( string fieldname , int num, int nthreads = 1 )
+    : query_base_test(fieldname,nthreads),
       num(num) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
   }
-  virtual void test( int n , query_args * arg , int &ai ) {
-    int c = num / 2500;
-    int start = arg->value * c;
-    int end   = start + c;
-    auto_ptr<DBClientCursor> cursor = arg->conn.query( NS ,BSON( fieldname << BSON("$lt" << end << "$gte" << start) ));
-    while ( cursor->more() ) {
-      arg->count++;
-      BSONObj obj = cursor->next();
-      arg->totalsize += obj.objsize();
-      ai = (int)arg->count;
+  virtual base_args * getarg(int n){
+    return new query_range_args(
+      (num/nthreads)*n,
+      (num/nthreads)*n + (num / DIV_BASE) * (THREAD_MAX/nthreads)
+      );
+  }
+  virtual BSONObj gen_query(query_base_args * a) {
+    query_range_args * arg = (query_range_args*) a;
+    return BSON( fieldname << BSON("$lt" << arg->to << "$gte" << arg->from));
+  }
+};
+
+struct conn_test :  thread_test {
+  int num;
+  conn_test( int num, int nthreads = 1 )
+    : thread_test(nthreads),
+      num(num){
+    int status;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+  }
+  virtual ~conn_test() {
+  }
+  virtual base_args * getarg(int n){
+    return new query_in_args();
+  }
+  virtual void test( base_args * arg ) {
+    for ( int i = 0 ; i < num ; i++ ){
+      try { 
+        arg->progres = i;
+        DBClientConnection conn;
+        string errmsg;
+        conn.setSoTimeout(1);
+        if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
+          cout << " : Couldn't connect : " << errmsg << endl;
+        }
+        BSONObj obj = conn.findOne( NS ,BSON( "_id" << i ));
+      }catch(...){
+      }
     }
   }
 };
@@ -429,6 +500,10 @@ int main ( int argc , char * argv[]  ){
     insert_test i(NDOCS,DOCSIZE,NTHREADS);
     i.start();
   }
+//  {
+//    conn_test c(NDOCS,50);
+//    c.start();
+//  }
   {
     insert_test i(NDOCS,DOCSIZE);
     i.start();
@@ -462,35 +537,33 @@ int main ( int argc , char * argv[]  ){
     u.start();
   }
   {
-    query_test q("value1");
+    query_in_test q("value1");
     q.start();
   }
   {
-    query_test q("value1",10);
+    query_in_test q("value1",10);
     q.start();
   }
   {
-    query_test q("value1",50);
+    query_in_test q("value1",50);
     q.start();
   }
   {
-    query_test q("value2");
+    query_test q("value2",1);
     q.start();
   }
   {
-    random_test r("_id",NDOCS);
+    query_range_test r("_id",NDOCS);
     r.start();
   }
   {
-    random_test r("_id",NDOCS,10);
+    query_range_test r("_id",NDOCS,10);
     r.start();
   }
   {
-    random_test r("_id",NDOCS,50);
+    query_range_test r("_id",NDOCS,50);
     r.start();
   }
-
-
 }
 /*
   wget http://downloads.mongodb.org/cxx-driver/mongodb-linux-x86_64-2.4.3.tgz
