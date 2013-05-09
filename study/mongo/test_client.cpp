@@ -24,8 +24,8 @@ using namespace mongo;
 const char *CONNECT_TO = "localhost:27017";
 const char *NS         = "test.test";
 int  NTHREADS    = 10;
-int  NDOCS       = 100000;
 int  DOCSIZE     = 400;
+int  NDOCS       = 100000;
       
 
 struct pidst {
@@ -141,10 +141,10 @@ struct thread_test {
       pthread_join(th[i],0);
     }
     fin = true;
-    pthread_join(dth,0);
     pidst end = pidstat(65075);
     pidst diff = end - begin;
     double cpu = (diff.utime + diff.stime) / (diff.timestamp/1000000.0);
+    pthread_join(dth,0);
     cout << "\rTIME: " << (diff.timestamp/1000000.0) << " , CPU : " << cpu << endl;
     finish(diff);
   }
@@ -363,7 +363,7 @@ struct query_test :  thread_test<query_args> {
     for ( vector<arg_t *>::iterator it(args.begin()),itend(args.end());
             it != itend;
             it++ ){
-      cout << setw(10) <<(*it)->n << ": COUNT: " << (*it)->arg->count << "( " << (*it)->arg->count / (diff.timestamp/1000000.0) << ") , TOTAL_SIZE : " << (*it)->arg->totalsize  << " (" << (*it)->arg->totalsize / (diff.timestamp/1000000.0)<< ")" << endl;
+      // cout << setw(10) <<(*it)->n << ": COUNT: " << (*it)->arg->count << "( " << (*it)->arg->count / (diff.timestamp/1000000.0) << ") , TOTAL_SIZE : " << (*it)->arg->totalsize  << " (" << (*it)->arg->totalsize / (diff.timestamp/1000000.0)<< ")" << endl;
       count += (*it)->arg->count;
       totalsize += (*it)->arg->totalsize;
     }
@@ -371,7 +371,27 @@ struct query_test :  thread_test<query_args> {
   }
 };
 
-
+struct random_test :  query_test {
+  int num;
+  random_test( string fieldname , int num, int nthreads = 1 )
+    : query_test(fieldname,nthreads),
+      num(num) {
+    int status;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " ===" << endl;
+  }
+  virtual void test( int n , query_args * arg , int &ai ) {
+    int c = num / 2500;
+    int start = arg->value * c;
+    int end   = start + c;
+    auto_ptr<DBClientCursor> cursor = arg->conn.query( NS ,BSON( fieldname << BSON("$lt" << end << "$gte" << start) ));
+    while ( cursor->more() ) {
+      arg->count++;
+      BSONObj obj = cursor->next();
+      arg->totalsize += obj.objsize();
+      ai = (int)arg->count;
+    }
+  }
+};
 
 
 int main ( int argc , char * argv[]  ){
@@ -385,12 +405,22 @@ int main ( int argc , char * argv[]  ){
     NTHREADS = strtoul(argv[3],0,0);
   }
   if ( argc >= 5 ) {
-    NDOCS = strtoul(argv[4],0,0);
+    DOCSIZE = strtoul(argv[4],0,0);
+  }
+  if ( argc >= 6 ) {
+    NDOCS = strtoul(argv[5],0,0);
   }
   cout << setw(10) << "CONNECT TO : " << setw(15) << CONNECT_TO << endl;
   cout << setw(10) << "NS         : " << setw(15) << NS << endl;
   cout << setw(10) << "NTHREADS   : " << setw(15) << NTHREADS << endl;
   cout << setw(10) << "NDOCS      : " << setw(15) << NDOCS << endl;
+
+  DBClientConnection conn;
+  string errmsg;
+  if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
+    cout << " : Couldn't connect : " << errmsg << endl;
+  }
+
   {
     insert_test i(NDOCS,DOCSIZE,NTHREADS);
     i.start();
@@ -443,12 +473,20 @@ int main ( int argc , char * argv[]  ){
     query_test q("value2");
     q.start();
   }
-  DBClientConnection conn;
-  string errmsg;
-  if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-    cout << " : Couldn't connect : " << errmsg << endl;
+  {
+    random_test r("_id",NDOCS);
+    r.start();
   }
-  //conn.dropCollection(NS);
+  {
+    random_test r("_id",NDOCS,10);
+    r.start();
+  }
+  {
+    random_test r("_id",NDOCS,50);
+    r.start();
+  }
+
+
 }
 /*
   wget http://downloads.mongodb.org/cxx-driver/mongodb-linux-x86_64-2.4.3.tgz
