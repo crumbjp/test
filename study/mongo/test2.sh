@@ -14,7 +14,7 @@ function mongo_test {
     echo == ${TARGET} == 
     date
     ${MONGO_HOME}/bin/mongo ${TARGET} --quiet <<<'db.dropDatabase()'
-    nice ./test_client 127.0.0.1:27017 ${TARGET}.TEST 10 ${SIZE} ${NUM}
+    nice ./test_client 127.0.0.1:27017 ${TARGET}.TEST `cat ${MONGO_HOME}/logs/mongod.pid` 10 ${SIZE} ${NUM}
     ${MONGO_HOME}/bin/mongo ${TARGET} --quiet <<<'db.testcol.stats()'
     tail -n 2000 ${MONGO_HOME}/logs/mongod.log | grep -e 'build index ' -e 'system.indexes ' -e '] update ' -e '] query ' -e '] getmore '
 

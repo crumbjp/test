@@ -26,7 +26,8 @@ const char *NS         = "test.test";
 int  NTHREADS    = 10;
 int  DOCSIZE     = 400;
 int  NDOCS       = 100000;
-      
+int  PID         = 0;
+
 
 struct pidst {
   int64_t timestamp;
@@ -136,12 +137,12 @@ struct thread_test {
     usleep(1000000);
     pthread_create(&dth,0,dump_handler,(void*)this);
     pthread_cond_broadcast(&this->cond);
-    pidst begin = pidstat(65075);
+    pidst begin = pidstat(PID);
     for ( int i = 0 ; i < nthreads ; i++ ) {
       pthread_join(th[i],0);
     }
     fin = true;
-    pidst end = pidstat(65075);
+    pidst end = pidstat(PID);
     pidst diff = end - begin;
     double cpu = (diff.utime + diff.stime) / (diff.timestamp/1000000.0);
     pthread_join(dth,0);
@@ -402,13 +403,16 @@ int main ( int argc , char * argv[]  ){
     NS = argv[2];
   }
   if ( argc >= 4 ) {
-    NTHREADS = strtoul(argv[3],0,0);
+    PID = strtoul(argv[3],0,0);
   }
   if ( argc >= 5 ) {
-    DOCSIZE = strtoul(argv[4],0,0);
+    NTHREADS = strtoul(argv[4],0,0);
   }
   if ( argc >= 6 ) {
-    NDOCS = strtoul(argv[5],0,0);
+    DOCSIZE = strtoul(argv[5],0,0);
+  }
+  if ( argc >= 7 ) {
+    NDOCS = strtoul(argv[6],0,0);
   }
   cout << setw(10) << "CONNECT TO : " << setw(15) << CONNECT_TO << endl;
   cout << setw(10) << "NS         : " << setw(15) << NS << endl;
