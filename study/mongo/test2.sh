@@ -15,7 +15,7 @@ function mongo_test {
     kill -SIGUSR1 `cat ${MONGO_HOME}/logs/mongod.pid`
     date
     ${MONGO_HOME}/bin/mongo ${TARGET} --quiet <<<'db.dropDatabase()'
-    nice ./test_client 127.0.0.1:27017 ${TARGET}.TEST `cat ${MONGO_HOME}/logs/mongod.pid` 10 ${SIZE} ${NUM}
+    nice ./test_client 127.0.0.1:27017 ${TARGET}.TEST `cat ${MONGO_HOME}/logs/mongod.pid` ${SIZE} ${NUM} 10
     ${MONGO_HOME}/bin/mongo ${TARGET} --quiet <<<'db.TEST.stats()'
     grep ${MONGO_HOME}/logs/mongod.log -e 'build index ' -e 'system.indexes ' -e '] update ' -e '] query ' -e '] getmore '
     ${MONGO_HOME}/bin/mongo ${TARGET} --quiet <<<'db.dropDatabase()'

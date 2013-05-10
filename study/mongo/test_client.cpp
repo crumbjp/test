@@ -24,14 +24,6 @@ using namespace mongo;
 static const int DIV_BASE   = 2500;
 static const int THREAD_MAX = 100;
 
-const char *CONNECT_TO = "localhost:27017";
-const char *NS         = "test.test";
-int  NTHREADS    = 10;
-int  DOCSIZE     = 400;
-int  NDOCS       = 100000;
-int  PID         = 0;
-
-
 struct pidst {
   int64_t timestamp;
   int     utime    ;
@@ -103,16 +95,35 @@ struct base_args {
 };
 
 struct thread_test {
+  DBClientConnection conn;
   bool fin;
   pthread_cond_t  cond;
   pthread_mutex_t mutex;
-  int nthreads;
+
+  const char *connect_to;
+  const char *ns;
+  int  pid;
+  int  ndocs;
+  int  docsize;
+  int  nthreads;
+
   vector<base_args*> args;
-  thread_test( int nthreads = 1 )
+  thread_test( 
+    const char *connect_to,const char *ns,int  pid,int  ndocs ,int  docsize,int  nthreads )
     : fin(false),
-      nthreads(nthreads) {
+      connect_to(connect_to),
+      ns        (ns        ),
+      pid       (pid       ),
+      ndocs     (ndocs     ),
+      docsize   (docsize   ),
+      nthreads  (nthreads  )
+    {
       pthread_cond_init(&cond,0);
       pthread_mutex_init(&mutex,0);
+      string errmsg;
+      if ( ! conn.connect( connect_to , errmsg ) ) {
+        throw runtime_error(errmsg);
+      }
     }
   virtual ~thread_test(){
     for ( vector<base_args *>::iterator it(args.begin()),itend(args.end());
@@ -140,12 +151,12 @@ struct thread_test {
     usleep(1000000);
     pthread_create(&dth,0,dump_handler,(void*)this);
     pthread_cond_broadcast(&this->cond);
-    pidst begin = pidstat(PID);
+    pidst begin = pidstat(pid);
     for ( int i = 0 ; i < nthreads ; i++ ) {
       pthread_join(th[i],0);
     }
     fin = true;
-    pidst end = pidstat(PID);
+    pidst end = pidstat(pid);
     pidst diff = end - begin;
     double cpu = (diff.utime + diff.stime) / (diff.timestamp/1000000.0);
     pthread_join(dth,0);
@@ -204,12 +215,12 @@ struct thread_test {
   }
 };
 
-
 struct insert_args : base_args {
   int from;
   int to;
   int div1;
   int div2;
+  long long totalsize;
   const char * value9;
   insert_args (  int from  ,
                  int to    ,
@@ -221,43 +232,40 @@ struct insert_args : base_args {
       to    (to    ),
       div1  (div1  ),
       div2  (div2  ),
-      value9(value9){
+      value9(value9),
+      totalsize(0) {
   }
 };
 
 struct insert_test :  thread_test {
   string value9;
-  DBClientConnection conn;
-  int num;                 
-  insert_test( int num, int size , int nthreads = 1 )
-    : thread_test(nthreads),
-      num(num) {
+  insert_test( 
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    )
+    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads) 
+    {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
 
     value9 = "";
-    for ( int i = 380 ; i < size ; i++ ) {
+    for ( int i = 380 ; i < docsize ; i++ ) {
       value9 += "H";
     }
-    string errmsg;
-    if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-      throw runtime_error(errmsg);
-    }
-    conn.dropCollection(NS);
+    conn.dropCollection(ns);
   }
   virtual ~insert_test() {
   }
   virtual base_args * getarg(int n){
     return new insert_args(
-      (num/nthreads)*n,
-      (num/nthreads)*(n+1),
+      (ndocs/nthreads)*n,
+      (ndocs/nthreads)*(n+1),
       DIV_BASE,
-      num/DIV_BASE,
+      ndocs/DIV_BASE,
       value9.c_str());
   }
   virtual void prepare(base_args * arg) {
     string errmsg;
-    if ( ! arg->conn.connect( CONNECT_TO , errmsg ) ) {
+    if ( ! arg->conn.connect( connect_to , errmsg ) ) {
       throw runtime_error(errmsg);
     }
   }
@@ -265,18 +273,19 @@ struct insert_test :  thread_test {
     insert_args * arg = (insert_args*)a;
     for ( int i = arg->from ; i < arg->to ; i++ ){
       arg->progres = i;
-      arg->conn.insert( NS ,
-                        BSON( "_id" << i << 
-                              "value0" << i << 
-                              "value1" << i % arg->div1 << 
-                              "value2" << i % arg->div2 << 
-                              "value3" << "aaaaaaaaaa" << 
-                              "value4" << "bbbbbbbbbbbbbbbbbbbb" << 
-                              "value5" << "cccccccccccccccccccccccccccccc" << 
-                              "value6" << "dddddddddddddddddddddddddddddddddddddddddddddddddd" << 
-                              "value7" << "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" << 
-                              "value8" << i << 
-                              "value9" << arg->value9));
+      BSONObj obj =  BSON( "_id" << i << 
+                           "value0" << i << 
+                           "value1" << i % arg->div1 << 
+                           "value2" << i % arg->div2 << 
+                           "value3" << "aaaaaaaaaa" << 
+                           "value4" << "bbbbbbbbbbbbbbbbbbbb" << 
+                           "value5" << "cccccccccccccccccccccccccccccc" << 
+                           "value6" << "dddddddddddddddddddddddddddddddddddddddddddddddddd" << 
+                           "value7" << "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" << 
+                           "value8" << i << 
+                           "value9" << arg->value9);
+      arg->conn.insert( ns ,obj);
+      arg->totalsize += obj.objsize();
     }
     string errmsg = arg->conn.getLastError();
     if ( ! errmsg.empty() ) {
@@ -284,63 +293,69 @@ struct insert_test :  thread_test {
     }
   }
   virtual void finish(pidst diff) {
-    long long count = 0L;
     long long totalsize = 0L;
-    cout << setw(10) << "ALL" << ": COUNT: " << num << "( " << num / (diff.timestamp/1000000.0) << ")" << endl;
+    for ( vector<base_args *>::iterator it(args.begin()),itend(args.end());
+            it != itend;
+            it++ ){
+      totalsize += ((insert_args*)(*it))->totalsize;
+    }
+    cout << setw(5) << "ALL" << ": COUNT: " << ndocs << "( " << ndocs / (diff.timestamp/1000000.0) << " n/s) , TOTAL_SIZE : " << totalsize << " (" << totalsize  / (diff.timestamp/1000000.0) / 1024 / 1024 << " mb/s)" << endl;
   }
 };
 
 
 struct ensure_test :  thread_test {
-  DBClientConnection conn;
   string fieldname;
-  ensure_test( string fieldname )
-    : thread_test(1),
+  ensure_test( string fieldname,
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize
+    )
+    : thread_test(connect_to,ns,pid,ndocs,docsize,1),
       fieldname(fieldname) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
-
-    string errmsg;
-    if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-      throw runtime_error(errmsg);
-    }
   }
   virtual ~ensure_test() {
   }
   virtual void test( base_args * arg ) {
-    conn.ensureIndex( NS , BSON( fieldname.c_str() << 1 ));
+    conn.ensureIndex( ns , BSON( fieldname.c_str() << 1 ));
     string errmsg = conn.getLastError();
     if ( ! errmsg.empty() ) {
       throw runtime_error(errmsg);
     }
+  }
+  virtual void finish(pidst diff) {
+    cout << setw(5) << "ALL:" << " COUNT: " << ndocs << "( " << ndocs / (diff.timestamp/1000000.0) << " n/s )" << endl;
   }
 };
 
 template <typename VALTYPE>
 struct update_test :  thread_test {
-  DBClientConnection conn;
+  long long totalsize;
   string fieldname;
   VALTYPE value;
-  update_test( string fieldname,VALTYPE value)
-    : thread_test(1),
+  update_test( string fieldname,VALTYPE value,
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize
+    )
+    : thread_test(connect_to,ns,pid,ndocs,docsize,1),
+      totalsize(0),
       fieldname(fieldname),
       value(value) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
-
-    string errmsg;
-    if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-      throw runtime_error(errmsg);
-    }
   }
   virtual ~update_test() {
   }
   virtual void test( base_args * arg ) {
-    conn.update( NS , BSONObj() ,BSON( "$set" << BSON(fieldname << value) ),false,true);
+    BSONObj obj = BSON(fieldname << value);
+    totalsize += obj.objsize();
+    conn.update( ns , BSONObj() ,BSON( "$set" << obj ),false,true);
     string errmsg = conn.getLastError();
     if ( ! errmsg.empty() ) {
       throw runtime_error(errmsg);
     }
+  }
+  virtual void finish(pidst diff) {
+    cout << setw(5) << "ALL" << ": COUNT: " << ndocs << "( " << ndocs / (diff.timestamp/1000000.0) << " n/s) , TOTAL_SIZE : " << totalsize << " (" << totalsize  / (diff.timestamp/1000000.0) / 1024 / 1024 << " mb/s)" << endl;
   }
 };
 
@@ -351,15 +366,17 @@ struct query_base_args : base_args {
 };
 struct query_base_test : thread_test {
   string fieldname;
-  query_base_test( string fieldname , int nthreads = 1 )
-    : thread_test(nthreads),
+  query_base_test( string fieldname , 
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    )
+    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads),
       fieldname(fieldname) {
   }
   virtual ~query_base_test() {
   }
   virtual void prepare(base_args * arg) {
     string errmsg;
-    if ( ! arg->conn.connect( CONNECT_TO , errmsg ) ) {
+    if ( ! arg->conn.connect( connect_to , errmsg ) ) {
       throw runtime_error(errmsg);
     }
   }
@@ -367,7 +384,7 @@ struct query_base_test : thread_test {
 
   virtual void test( base_args * a ) {
     query_base_args * arg = (query_base_args*)a;
-    auto_ptr<DBClientCursor> cursor = arg->conn.query( NS , gen_query(arg));
+    auto_ptr<DBClientCursor> cursor = arg->conn.query( ns , gen_query(arg));
     while ( cursor->more() ) {
       arg->count++;
       BSONObj obj = cursor->next();
@@ -386,17 +403,20 @@ struct query_base_test : thread_test {
       count += ((query_base_args*)(*it))->count;
       totalsize += ((query_base_args*)(*it))->totalsize;
     }
-    cout << setw(10) << "ALL" << ": COUNT: " << count << "( " << count / (diff.timestamp/1000000.0) << ") , TOTAL_SIZE : " << totalsize << " (" << totalsize / (diff.timestamp/1000000.0) << ")" << endl;
+    cout << setw(5) << "ALL" << ": COUNT: " << count << "( " << count / (diff.timestamp/1000000.0) << " n/s) , TOTAL_SIZE : " << totalsize << " (" << totalsize / (diff.timestamp/1000000.0) / 1024 / 1024 << " mb/s)" << endl;
   }
 };
 
 struct query_test :  query_base_test {
   int value;
-  query_test( string fieldname , int value , int nthreads = 1 )
-    : query_base_test(fieldname,nthreads),value(value) {
-    int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
-  }
+  query_test( string fieldname , int value , 
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    )
+    : query_base_test(fieldname,connect_to,ns,pid,ndocs,docsize,nthreads) 
+    {
+      int status;
+      cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    }
   virtual ~query_test() {
   }
   virtual base_args * getarg(int n){
@@ -415,8 +435,10 @@ struct query_in_args : query_base_args {
 
 
 struct query_in_test :  query_base_test {
-  query_in_test( string fieldname , int nthreads = 1 )
-    : query_base_test(fieldname,nthreads) {
+  query_in_test( string fieldname , 
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    )
+    : query_base_test(fieldname,connect_to,ns,pid,ndocs,docsize,nthreads) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
   }
@@ -441,17 +463,17 @@ struct query_range_args : query_base_args {
   query_range_args(int from,int to) : from(from),to(to){}
 };
 struct query_range_test :  query_base_test {
-  int num;
-  query_range_test( string fieldname , int num, int nthreads = 1 )
-    : query_base_test(fieldname,nthreads),
-      num(num) {
+  query_range_test( string fieldname , 
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    )
+    : query_base_test(fieldname,connect_to,ns,pid,ndocs,docsize,nthreads) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
   }
   virtual base_args * getarg(int n){
     return new query_range_args(
-      (num/nthreads)*n,
-      (num/nthreads)*n + (num / DIV_BASE) * (THREAD_MAX/nthreads)
+      (ndocs/nthreads)*n,
+      (ndocs/nthreads)*n + (ndocs / DIV_BASE) * (THREAD_MAX/nthreads)
       );
   }
   virtual BSONObj gen_query(query_base_args * a) {
@@ -461,36 +483,37 @@ struct query_range_test :  query_base_test {
 };
 
 struct conn_test :  thread_test {
-  int num;
-  conn_test( int num, int nthreads = 1 )
-    : thread_test(nthreads),
-      num(num){
-    int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
-  }
+  conn_test(
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    )
+    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads) 
+    {
+      int status;
+      cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    }
   virtual ~conn_test() {
   }
   virtual void test( base_args * arg ) {
-    for ( int i = 0 ; i < num ; i++ ){
+    for ( int i = 0 ; i < ndocs ; i++ ){
       try { 
         arg->progres = i;
         DBClientConnection conn;
         conn.setSoTimeout(1);
         string errmsg;
-        if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
+        if ( ! conn.connect( connect_to , errmsg ) ) {
           throw runtime_error(errmsg);
         }
-        BSONObj obj = conn.findOne( NS ,BSON( "_id" << i ));
+        BSONObj obj = conn.findOne( ns ,BSON( "_id" << i ));
       }catch(...){
       }
     }
   }
 };
 struct conn_pool_test :  thread_test {
-  int num;
-  conn_pool_test( int num, int nthreads = 1 )
-    : thread_test(nthreads),
-      num(num){
+  conn_pool_test(
+    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    )
+    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads) {
     int status;
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
   }
@@ -500,13 +523,13 @@ struct conn_pool_test :  thread_test {
     DBClientConnection conn;
     string errmsg;
     conn.setSoTimeout(1);
-    for ( int i = 0 ; i < num ; i++ ){
+    for ( int i = 0 ; i < ndocs ; i++ ){
       try { 
         arg->progres = i;
-        if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
+        if ( ! conn.connect( connect_to , errmsg ) ) {
           throw runtime_error(errmsg);
         }
-        BSONObj obj = conn.findOne( NS ,BSON( "_id" << i ));
+        BSONObj obj = conn.findOne( ns ,BSON( "_id" << i ));
       }catch(...){
       }
     }
@@ -515,6 +538,12 @@ struct conn_pool_test :  thread_test {
 
 
 int main ( int argc , char * argv[]  ){
+  const char *CONNECT_TO = "localhost:27017";
+  const char *NS         = "test.TEST";
+  int  PID         = 0;
+  int  DOCSIZE     = 400;
+  int  NDOCS       = 100000;
+  int  NTHREADS    = 10;
   if ( argc >= 2 ) {
     CONNECT_TO = argv[1];
   }
@@ -525,13 +554,13 @@ int main ( int argc , char * argv[]  ){
     PID = strtoul(argv[3],0,0);
   }
   if ( argc >= 5 ) {
-    NTHREADS = strtoul(argv[4],0,0);
+    DOCSIZE = strtoul(argv[4],0,0);
   }
   if ( argc >= 6 ) {
-    DOCSIZE = strtoul(argv[5],0,0);
+    NDOCS = strtoul(argv[5],0,0);
   }
   if ( argc >= 7 ) {
-    NDOCS = strtoul(argv[6],0,0);
+    NTHREADS = strtoul(argv[6],0,0);
   }
   cout << setw(10) << "CONNECT TO : " << setw(15) << CONNECT_TO << endl;
   cout << setw(10) << "NS         : " << setw(15) << NS << endl;
@@ -544,76 +573,81 @@ int main ( int argc , char * argv[]  ){
     cout << " : Couldn't connect : " << errmsg << endl;
   }
 
+  
   {
-    insert_test i(NDOCS,DOCSIZE,NTHREADS);
+    insert_test i(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,NTHREADS);
     i.start();
   }
   // {
-  //   conn_test c(NDOCS,THREAD_MAX);
+  //   conn_test c(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
   //   c.start();
   // }
   // {
-  //   conn_pool_test c(NDOCS,THREAD_MAX);
+  //   conn_pool_test c(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
   //   c.start();
   // }
   {
-    insert_test i(NDOCS,DOCSIZE);
+    insert_test i(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
     i.start();
   }
   {
-    ensure_test e("value1");
+    ensure_test e("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
     e.start();
   }
   {
-    ensure_test e("value2");
+    ensure_test e("value2",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
     e.start();
   }
-  {
-    update_test<double> u("value8",1);
+  { // It seems like that the number field of the new document is not normal number type...
+    update_test<double> u("value8",1,CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
     u.start();
   }
   {
-    update_test<double> u("value8",3);
+    update_test<double> u("value8",3,CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
     u.start();
   }
   {
-    update_test<long long> u("value8",0x100000000LL);
+    update_test<long long> u("value8",0x100000000LL,CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
     u.start();
   }
   {
-    update_test<const char *> u("value5","CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+    update_test<const char *> u("value5","CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
     u.start();
   }
   {
-    update_test<const char *> u("value7","EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE");
+    update_test<const char *> u("value7","EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
     u.start();
   }
   {
-    query_in_test q("value1");
+    query_in_test q("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
     q.start();
   }
   {
-    query_in_test q("value1",NTHREADS);
+    query_in_test q("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,NTHREADS);
     q.start();
   }
   {
-    query_in_test q("value1",THREAD_MAX);
+    query_in_test q("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
     q.start();
   }
   {
-    query_test q("value2",1);
+    query_test q("value2",0,CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
     q.start();
   }
   {
-    query_range_test r("_id",NDOCS);
+    query_test q("value2",1,CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
+    q.start();
+  }
+  {
+    query_range_test r("_id",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
     r.start();
   }
   {
-    query_range_test r("_id",NDOCS,NTHREADS);
+    query_range_test r("_id",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,NTHREADS);
     r.start();
   }
   {
-    query_range_test r("_id",NDOCS,THREAD_MAX);
+    query_range_test r("_id",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
     r.start();
   }
 }
