@@ -241,7 +241,7 @@ struct insert_test :  thread_test {
     }
     string errmsg;
     if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-      cout << " : Couldn't connect : " << errmsg << endl;
+      throw runtime_error(errmsg);
     }
     conn.dropCollection(NS);
   }
@@ -258,7 +258,7 @@ struct insert_test :  thread_test {
   virtual void prepare(base_args * arg) {
     string errmsg;
     if ( ! arg->conn.connect( CONNECT_TO , errmsg ) ) {
-      cout << " : Couldn't connect : " << errmsg << endl;
+      throw runtime_error(errmsg);
     }
   }
   virtual void test( base_args * a ) {
@@ -277,6 +277,10 @@ struct insert_test :  thread_test {
                               "value7" << "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" << 
                               "value8" << i << 
                               "value9" << arg->value9));
+    }
+    String errmsg = arg->conn.getLastError();
+    if ( ! errmsg.empty() ) {
+      throw exception(errmsg);
     }
   }
   virtual void finish(pidst diff) {
@@ -298,13 +302,17 @@ struct ensure_test :  thread_test {
 
     string errmsg;
     if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-      cout << " : Couldn't connect : " << errmsg << endl;
+      throw runtime_error(errmsg);
     }
   }
   virtual ~ensure_test() {
   }
   virtual void test( base_args * arg ) {
     conn.ensureIndex( NS , BSON( fieldname.c_str() << 1 ));
+    string errmsg = conn.getLastError();
+    if ( ! errmsg.empty() ) {
+      throw runtime_error(errmsg);
+    }
   }
 };
 
@@ -322,13 +330,17 @@ struct update_test :  thread_test {
 
     string errmsg;
     if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-      cout << " : Couldn't connect : " << errmsg << endl;
+      throw runtime_error(errmsg);
     }
   }
   virtual ~update_test() {
   }
   virtual void test( base_args * arg ) {
     conn.update( NS , BSONObj() ,BSON( "$set" << BSON(fieldname << value) ),false,true);
+    string errmsg = conn.getLastError();
+    if ( ! errmsg.empty() ) {
+      throw runtime_error(errmsg);
+    }
   }
 };
 
@@ -348,7 +360,7 @@ struct query_base_test : thread_test {
   virtual void prepare(base_args * arg) {
     string errmsg;
     if ( ! arg->conn.connect( CONNECT_TO , errmsg ) ) {
-      cout << " : Couldn't connect : " << errmsg << endl;
+      throw runtime_error(errmsg);
     }
   }
   virtual BSONObj gen_query(query_base_args * a) = 0;
@@ -463,10 +475,10 @@ struct conn_test :  thread_test {
       try { 
         arg->progres = i;
         DBClientConnection conn;
-        string errmsg;
         conn.setSoTimeout(1);
+        string errmsg;
         if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-          cout << " : Couldn't connect : " << errmsg << endl;
+          throw runtime_error(errmsg);
         }
         BSONObj obj = conn.findOne( NS ,BSON( "_id" << i ));
       }catch(...){
@@ -492,7 +504,7 @@ struct conn_pool_test :  thread_test {
       try { 
         arg->progres = i;
         if ( ! conn.connect( CONNECT_TO , errmsg ) ) {
-          cout << " : Couldn't connect : " << errmsg << endl;
+          throw runtime_error(errmsg);
         }
         BSONObj obj = conn.findOne( NS ,BSON( "_id" << i ));
       }catch(...){
