@@ -5,20 +5,6 @@
  *     by hiroaki.kubota <hiroaki.kubota@mail.rakuten.com> 
  *     Date : 2013/05/07
  */
-/* 
-   == How to build ==
-   # yum install boost-devel.x86_64
-   export MONGO_VERSION=2.4.3
-   wget http://downloads.mongodb.org/cxx-driver/mongodb-linux-x86_64-${MONGO_VERSION}.tgz
-   tar xzf mongodb-linux-x86_64-${MONGO_VERSION}.tgz
-   pushd mongo-cxx-driver-v2.4
-   scons
-   popd
-
-   == How to run ==
-   g++ mongo_bench.cpp -o mongo_bench -O3 -pthread  -L mongo-cxx-driver-v2.4/build/ -l mongoclient -lboost_thread-mt -lboost_filesystem -I mongo-cxx-driver-v2.4/src/
-   nich ./mongo_bench 127.0.0.1:27017 test.TEST `cat /usr/local/mongo/logs/mongod.pid` 4000 100000 10
-*/
 
 #include "mongo/client/dbclient.h"
 #include <iostream>
@@ -203,7 +189,7 @@ struct thread_test {
             it != itend;
             it++ ){
         //cout << "\033[2K\r" << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->progres << fflush;
-        cout << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->progres << fflush;
+        cout << setw(10) <<(*it)->n << " : " << setw(15) << (*it)->progres;
         if ( lineflg ) {
           cout << endl << "\033[2K\r";
         }
@@ -378,7 +364,7 @@ struct update_test :  thread_test {
   }
   virtual void test( base_args * arg ) {
     BSONObj obj = BSON(fieldname << value);
-    totalsize += obj.objsize();
+    totalsize += obj.objsize() * ndocs;
     conn.update( ns , BSONObj() ,BSON( "$set" << obj ),false,true);
     string errmsg = conn.getLastError();
     if ( ! errmsg.empty() ) {
