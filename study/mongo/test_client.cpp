@@ -278,9 +278,9 @@ struct insert_test :  thread_test {
                               "value8" << i << 
                               "value9" << arg->value9));
     }
-    String errmsg = arg->conn.getLastError();
+    string errmsg = arg->conn.getLastError();
     if ( ! errmsg.empty() ) {
-      throw exception(errmsg);
+      throw runtime_error(errmsg);
     }
   }
   virtual void finish(pidst diff) {
