@@ -248,7 +248,7 @@ struct insert_test :  thread_test {
     cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
 
     value9 = "";
-    for ( int i = 380 ; i < docsize ; i++ ) {
+    for ( int i = 365 ; i < docsize ; i++ ) {
       value9 += "H";
     }
     conn.dropCollection(ns);
