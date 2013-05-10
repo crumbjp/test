@@ -103,19 +103,19 @@ struct thread_test {
   const char *connect_to;
   const char *ns;
   int  pid;
-  int  ndocs;
   int  docsize;
+  int  ndocs;
   int  nthreads;
 
   vector<base_args*> args;
   thread_test( 
-    const char *connect_to,const char *ns,int  pid,int  ndocs ,int  docsize,int  nthreads )
+    const char *connect_to,const char *ns,int  pid,int  docsize ,int  ndocs,int  nthreads )
     : fin(false),
       connect_to(connect_to),
       ns        (ns        ),
       pid       (pid       ),
-      ndocs     (ndocs     ),
       docsize   (docsize   ),
+      ndocs     (ndocs     ),
       nthreads  (nthreads  )
     {
       pthread_cond_init(&cond,0);
@@ -160,7 +160,7 @@ struct thread_test {
     pidst diff = end - begin;
     double cpu = (diff.utime + diff.stime) / (diff.timestamp/1000000.0);
     pthread_join(dth,0);
-    cout << "\rTIME: " << (diff.timestamp/1000000.0) << " , CPU : " << cpu << endl;
+    cout << "\rTIME: " << (diff.timestamp/1000000.0) << " CPU: " << cpu <<  endl;
     finish(diff);
   }
   static void * dump_handler(void *a){
@@ -240,12 +240,12 @@ struct insert_args : base_args {
 struct insert_test :  thread_test {
   string value9;
   insert_test( 
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs,int  nthreads 
     )
-    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads) 
+    : thread_test(connect_to,ns,pid,docsize,ndocs,nthreads) 
     {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
 
     value9 = "";
     for ( int i = 365 ; i < docsize ; i++ ) {
@@ -299,7 +299,13 @@ struct insert_test :  thread_test {
             it++ ){
       totalsize += ((insert_args*)(*it))->totalsize;
     }
-    cout << setw(5) << "ALL" << ": COUNT: " << ndocs << "( " << ndocs / (diff.timestamp/1000000.0) << " n/s) , TOTAL_SIZE : " << totalsize << " (" << totalsize  / (diff.timestamp/1000000.0) / 1024 / 1024 << " mb/s)" << endl;
+    cout << setw(5)  << "ALL>" 
+         << setw(10)  << ndocs / (diff.timestamp/1000000.0) << " n/s," 
+         << setw(1)  << " TOTAL: " 
+         << setw(10) << totalsize << " B,"
+         << setw(10) << ((double)totalsize)  / 1024 / 1024 /1024 << " GB,"
+         << setw(10)  << totalsize  / (diff.timestamp/1000000.0) / 1024 / 1024 << " MB/s,"
+         << endl;
   }
 };
 
@@ -307,12 +313,12 @@ struct insert_test :  thread_test {
 struct ensure_test :  thread_test {
   string fieldname;
   ensure_test( string fieldname,
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs
     )
-    : thread_test(connect_to,ns,pid,ndocs,docsize,1),
+    : thread_test(connect_to,ns,pid,docsize,ndocs,1),
       fieldname(fieldname) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
   }
   virtual ~ensure_test() {
   }
@@ -324,7 +330,9 @@ struct ensure_test :  thread_test {
     }
   }
   virtual void finish(pidst diff) {
-    cout << setw(5) << "ALL:" << " COUNT: " << ndocs << "( " << ndocs / (diff.timestamp/1000000.0) << " n/s )" << endl;
+    cout << setw(5)  << "ALL>" 
+         << setw(10)  << ndocs / (diff.timestamp/1000000.0) << " n/s," 
+         << endl;
   }
 };
 
@@ -334,14 +342,14 @@ struct update_test :  thread_test {
   string fieldname;
   VALTYPE value;
   update_test( string fieldname,VALTYPE value,
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs
     )
-    : thread_test(connect_to,ns,pid,ndocs,docsize,1),
+    : thread_test(connect_to,ns,pid,docsize,ndocs,1),
       totalsize(0),
       fieldname(fieldname),
       value(value) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
   }
   virtual ~update_test() {
   }
@@ -355,7 +363,13 @@ struct update_test :  thread_test {
     }
   }
   virtual void finish(pidst diff) {
-    cout << setw(5) << "ALL" << ": COUNT: " << ndocs << "( " << ndocs / (diff.timestamp/1000000.0) << " n/s) , TOTAL_SIZE : " << totalsize << " (" << totalsize  / (diff.timestamp/1000000.0) / 1024 / 1024 << " mb/s)" << endl;
+    cout << setw(5)  << "ALL>" 
+         << setw(10)  << ndocs / (diff.timestamp/1000000.0) << " n/s," 
+         << setw(1)  << " TOTAL: " 
+         << setw(10) << totalsize << " B,"
+         << setw(10) << ((double)totalsize)  / 1024 / 1024 /1024 << " GB,"
+         << setw(10)  << totalsize  / (diff.timestamp/1000000.0) / 1024 / 1024 << " MB/s,"
+         << endl;
   }
 };
 
@@ -367,9 +381,9 @@ struct query_base_args : base_args {
 struct query_base_test : thread_test {
   string fieldname;
   query_base_test( string fieldname , 
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs,int  nthreads 
     )
-    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads),
+    : thread_test(connect_to,ns,pid,docsize,ndocs,nthreads),
       fieldname(fieldname) {
   }
   virtual ~query_base_test() {
@@ -403,19 +417,26 @@ struct query_base_test : thread_test {
       count += ((query_base_args*)(*it))->count;
       totalsize += ((query_base_args*)(*it))->totalsize;
     }
-    cout << setw(5) << "ALL" << ": COUNT: " << count << "( " << count / (diff.timestamp/1000000.0) << " n/s) , TOTAL_SIZE : " << totalsize << " (" << totalsize / (diff.timestamp/1000000.0) / 1024 / 1024 << " mb/s)" << endl;
+    cout << setw(5)  << "ALL>" 
+         << setw(8) << count << ", "
+         << setw(10) << count / (diff.timestamp/1000000.0) << " n/s," 
+         << setw(1)  << " TOTAL: " 
+         << setw(10) << totalsize << " B,"
+         << setw(10) << ((double)totalsize)  / 1024 / 1024 /1024 << " GB,"
+         << setw(10) << totalsize  / (diff.timestamp/1000000.0) / 1024 / 1024 << " MB/s,"
+         << endl;
   }
 };
 
 struct query_test :  query_base_test {
   int value;
   query_test( string fieldname , int value , 
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs,int  nthreads 
     )
-    : query_base_test(fieldname,connect_to,ns,pid,ndocs,docsize,nthreads) 
+    : query_base_test(fieldname,connect_to,ns,pid,docsize,ndocs,nthreads) 
     {
       int status;
-      cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+      cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
     }
   virtual ~query_test() {
   }
@@ -436,11 +457,11 @@ struct query_in_args : query_base_args {
 
 struct query_in_test :  query_base_test {
   query_in_test( string fieldname , 
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs,int  nthreads 
     )
-    : query_base_test(fieldname,connect_to,ns,pid,ndocs,docsize,nthreads) {
+    : query_base_test(fieldname,connect_to,ns,pid,docsize,ndocs,nthreads) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
   }
   virtual ~query_in_test() {
   }
@@ -464,11 +485,11 @@ struct query_range_args : query_base_args {
 };
 struct query_range_test :  query_base_test {
   query_range_test( string fieldname , 
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs,int  nthreads 
     )
-    : query_base_test(fieldname,connect_to,ns,pid,ndocs,docsize,nthreads) {
+    : query_base_test(fieldname,connect_to,ns,pid,docsize,ndocs,nthreads) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
   }
   virtual base_args * getarg(int n){
     return new query_range_args(
@@ -484,12 +505,12 @@ struct query_range_test :  query_base_test {
 
 struct conn_test :  thread_test {
   conn_test(
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs,int  nthreads 
     )
-    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads) 
+    : thread_test(connect_to,ns,pid,docsize,ndocs,nthreads) 
     {
       int status;
-      cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+      cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
     }
   virtual ~conn_test() {
   }
@@ -511,11 +532,11 @@ struct conn_test :  thread_test {
 };
 struct conn_pool_test :  thread_test {
   conn_pool_test(
-    const char *connect_to,const char *ns,int  pid,int  ndocs,int  docsize,int  nthreads 
+    const char *connect_to,const char *ns,int  pid,int  docsize,int  ndocs,int  nthreads 
     )
-    : thread_test(connect_to,ns,pid,ndocs,docsize,nthreads) {
+    : thread_test(connect_to,ns,pid,docsize,ndocs,nthreads) {
     int status;
-    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << nthreads << " ===" << endl;
+    cout << "=== " << abi::__cxa_demangle(typeid(this).name(), 0, 0, &status) << " : " << docsize << " : " << ndocs << " : " << nthreads << " ===" << endl;
   }
   virtual ~conn_pool_test() {
   }
@@ -562,10 +583,11 @@ int main ( int argc , char * argv[]  ){
   if ( argc >= 7 ) {
     NTHREADS = strtoul(argv[6],0,0);
   }
-  cout << setw(10) << "CONNECT TO : " << setw(15) << CONNECT_TO << endl;
-  cout << setw(10) << "NS         : " << setw(15) << NS << endl;
-  cout << setw(10) << "NTHREADS   : " << setw(15) << NTHREADS << endl;
-  cout << setw(10) << "NDOCS      : " << setw(15) << NDOCS << endl;
+  cout  << "CONNECT TO : " << setw(15) << CONNECT_TO << endl;
+  cout  << "NS         : " << setw(15) << NS << endl;
+  cout  << "DOCSIZE    : " << setw(15) << DOCSIZE << endl;
+  cout  << "NDOCS      : " << setw(15) << NDOCS << endl;
+  cout  << "NTHREADS   : " << setw(15) << NTHREADS << endl;
 
   DBClientConnection conn;
   string errmsg;
@@ -575,79 +597,79 @@ int main ( int argc , char * argv[]  ){
 
   
   {
-    insert_test i(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,NTHREADS);
+    insert_test i(CONNECT_TO,NS,PID,DOCSIZE,NDOCS,NTHREADS);
     i.start();
   }
   // {
-  //   conn_test c(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
+  //   conn_test c(CONNECT_TO,NS,PID,DOCSIZE,NDOCS,THREAD_MAX);
   //   c.start();
   // }
   // {
-  //   conn_pool_test c(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
+  //   conn_pool_test c(CONNECT_TO,NS,PID,DOCSIZE,NDOCS,THREAD_MAX);
   //   c.start();
   // }
   {
-    insert_test i(CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
+    insert_test i(CONNECT_TO,NS,PID,DOCSIZE,NDOCS,1);
     i.start();
   }
   {
-    ensure_test e("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
+    ensure_test e("value1",CONNECT_TO,NS,PID,DOCSIZE,NDOCS);
     e.start();
   }
   {
-    ensure_test e("value2",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
+    ensure_test e("value2",CONNECT_TO,NS,PID,DOCSIZE,NDOCS);
     e.start();
   }
   { // It seems like that the number field of the new document is not normal number type...
-    update_test<double> u("value8",1,CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
+    update_test<double> u("value8",1,CONNECT_TO,NS,PID,DOCSIZE,NDOCS);
     u.start();
   }
   {
-    update_test<double> u("value8",3,CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
+    update_test<double> u("value8",3,CONNECT_TO,NS,PID,DOCSIZE,NDOCS);
     u.start();
   }
   {
-    update_test<long long> u("value8",0x100000000LL,CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
+    update_test<long long> u("value8",0x100000000LL,CONNECT_TO,NS,PID,DOCSIZE,NDOCS);
     u.start();
   }
   {
-    update_test<const char *> u("value5","CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
+    update_test<const char *> u("value5","CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",CONNECT_TO,NS,PID,DOCSIZE,NDOCS);
     u.start();
   }
   {
-    update_test<const char *> u("value7","EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",CONNECT_TO,NS,PID,NDOCS,DOCSIZE);
+    update_test<const char *> u("value7","EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",CONNECT_TO,NS,PID,DOCSIZE,NDOCS);
     u.start();
   }
   {
-    query_in_test q("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
+    query_in_test q("value1",CONNECT_TO,NS,PID,DOCSIZE,NDOCS,1);
     q.start();
   }
   {
-    query_in_test q("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,NTHREADS);
+    query_in_test q("value1",CONNECT_TO,NS,PID,DOCSIZE,NDOCS,NTHREADS);
     q.start();
   }
   {
-    query_in_test q("value1",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
+    query_in_test q("value1",CONNECT_TO,NS,PID,DOCSIZE,NDOCS,THREAD_MAX);
     q.start();
   }
   {
-    query_test q("value2",0,CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
+    query_test q("value2",0,CONNECT_TO,NS,PID,DOCSIZE,NDOCS,1);
     q.start();
   }
   {
-    query_test q("value2",1,CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
+    query_test q("value2",1,CONNECT_TO,NS,PID,DOCSIZE,NDOCS,1);
     q.start();
   }
   {
-    query_range_test r("_id",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,1);
+    query_range_test r("_id",CONNECT_TO,NS,PID,DOCSIZE,NDOCS,1);
     r.start();
   }
   {
-    query_range_test r("_id",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,NTHREADS);
+    query_range_test r("_id",CONNECT_TO,NS,PID,DOCSIZE,NDOCS,NTHREADS);
     r.start();
   }
   {
-    query_range_test r("_id",CONNECT_TO,NS,PID,NDOCS,DOCSIZE,THREAD_MAX);
+    query_range_test r("_id",CONNECT_TO,NS,PID,DOCSIZE,NDOCS,THREAD_MAX);
     r.start();
   }
 }
