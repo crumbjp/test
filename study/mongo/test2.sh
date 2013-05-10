@@ -20,8 +20,8 @@ function mongo_test {
     grep ${MONGO_HOME}/logs/mongod.log -e 'build index ' -e 'system.indexes ' -e '] update ' -e '] query ' -e '] getmore '
     ${MONGO_HOME}/bin/mongo ${TARGET} --quiet <<<'db.dropDatabase()'
 }
-mongo_test 'mild'   1024                         100000
-exit
+#mongo_test 'mild'   1024                         100000
+#exit
 #pidstat -p `cat ${MONGO_HOME}/logs/mongod.pid` 60 > mongo.pidstat &
 #PID_STAT=$!
 mongo_test 'small'   400                         100000000
