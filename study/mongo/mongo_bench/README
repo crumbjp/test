@@ -58,10 +58,12 @@
     ALL>   28893.6 n/s, TOTAL:   21000000 B,  0.578656 MB/s,
 
 
-[fetch by in]
+[fetch by $in]
  Below outputs means,
   Fetched 40000 documents by using $in operator from collection was housing 1000000 documents from 1 thread.
-   It means random fetch.
+
+   It means RANDOM fetch.
+
   - Client received 15560000 bytes of BSON objects in total.
 
    === query_in_test* : 400 : 1000000 : 1 ===
@@ -73,10 +75,18 @@
 
    === query_in_test* : 400 : 1000000 : 100 ===
 
+[fetch by direct value]
+  Fetched 40000 documents by specifing value from collection was housing 1000000 documents from 1 thread.
 
+   It means RANDOM fetch.
+
+   === query_test* : 400 : 1000000 : 1 ===
+
+[fetch by range]
  Below outputs means,
   Fetched 40000 documents by using $gte and $lt operators from collection was housing 1000000 documents from 1 thread.
-   It means sequencial fetch.
+
+   It means SEQUENCIAL fetch.
 
    === query_range_test* : 400 : 1000000 : 1 ===
    TIME: 0.092688 CPU: 86.3111
