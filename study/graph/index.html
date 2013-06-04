@@ -1,0 +1,456 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="ja">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta http-equiv="content-style-type" content="text/css">
+    <meta http-equiv="content-script-type" content="text/javascript">
+    <meta name="description" content="">
+    <title>Graph</title>
+    <link rel="stylesheet" href="jquery-ui-1.8.21.custom.css" type="text/css" media="all" />
+    <link rel="stylesheet" type="text/css" media="" href="http://">
+    <style>
+#dgraph div.graph {
+  height: 400px;
+  margin: 25px 200px 20px 10px ;
+}
+#dgraph div.list {
+  width:  100%;
+}
+#dgraph div.list table {
+  border-spacing:0;
+  border: 2px solid #888888;
+}
+#dgraph div.list table th.H {
+  border-left-style: dashed;
+  border-left-width: 1px;
+}
+#dgraph div.list table th.R {
+  border-top-style: dashed;
+  border-top-width: 1px;
+}
+#dgraph div.list table tr > * {
+  border-width: 0;
+  border-color: #EEEEEE;
+}
+#dgraph div.list table th {
+  padding : 4px 10px 2px 10px;
+  background-color: #EEEEEE;
+  border-color: #FFFFFF;
+}
+#dgraph div.list table td {
+  padding : 4px 2px 2px 0;
+  text-align:right;
+  border-left-style: dashed;
+  border-left-width: 1px;
+  border-top-style: dashed;
+  border-top-width: 1px;
+}
+#dgraph div.cc {
+  float: right;
+  width:  200px;
+}
+#dgraph div.cc span.name {
+  display: none;
+}
+#dgraph textarea.data {
+  width:  100%;
+  height: 800px;
+}
+#dgraph input[type="button"] {
+  width:  100px;
+}
+    </style>
+</head>
+<body>
+<div id="dgraph">
+<a class="link"></a>
+<h1 class="title"></h1>
+<div class="cc" class="choises"><h3></h3></div>
+<div class="graph"></div>
+<button class="bz">Zoom selection</button>
+<button class="bc">Clear zoom</button>
+<div class="list"></div>
+<form>
+  <textarea class="data" >
+  </textarea><br>
+  <input class="go" type="button" value="go"></input>
+</form>
+</div>
+<script type="text/javascript" src="jquery-1.7.2.min.js"></script>
+<script type="text/javascript" src="jquery-ui-1.8.21.custom.min.js"></script>
+<script type="text/javascript" src="jquery.flot.js"></script>
+<script type="text/javascript" src="jquery.flot.selection.js"></script>
+<script language=javascript>
+<!--
+$(function(){
+  function getUrlVars(){
+    var vars = [], hash; 
+    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&'); 
+    for(var i = 0; i < hashes.length; i++) { 
+      hash = hashes[i].split('='); 
+      vars.push(hash[0]); 
+      vars[hash[0]] = decodeURIComponent(hash[1]);
+    } 
+    return vars;
+  } 
+  $('#dgraph input.go').click(function(ev){
+    var t = $('#dgraph textarea.data').val()
+    eval('var json =' + t);
+    plot(json);
+  });
+  
+  function clone(src) {
+    var ret;
+    if(src === null ){
+      return src;
+    }else if(src.constructor === Array) {
+      ret = [];
+    } else if(src.constructor === Object) {
+      ret = {};
+    } else {
+      return src;
+    }
+    for(var key in src) {
+      ret[key] = clone(src[key]);
+    }
+    return ret;
+  };
+
+  function plot(json){
+    $('#dgraph div.graph').empty();
+    $('#dgraph div.cc').empty();
+    $('#dgraph div.list').empty();
+    var THIS=this;
+
+    $('#dgraph h1.title').text(json.title);
+
+
+    THIS.ranges = {max:undefined,min:undefined};
+    THIS.draw =  function () {
+      var datas = clone(THIS.json.datas);
+      for ( var i in datas ) {
+	datas[i].data = [];
+      }
+      var cs=[];
+	$('#dgraph div.cc input[type="checkbox"]:checked').each(function(){
+	  cs.push($(this).attr('idx'));
+	});
+      for ( var c in cs ){
+	var i = cs[c];
+	datas[i].data = THIS.json.datas[i].data;
+      }
+
+      THIS.xaxis.max=THIS.ranges.max;
+      THIS.xaxis.min=THIS.ranges.min;
+
+	$.plot($('#dgraph div.graph'), datas, {
+	  series: {
+            lines: { show: true },
+            points: { show: true }
+	  },
+	  grid: { hoverable: true, clickable: true },
+	  xaxis: THIS.xaxis,
+	  yaxes: THIS.yaxes,
+	  selection: { mode: "x" },
+	  legend:{
+	    show: false,
+	    noColumns: 2,
+	    backgroundOpacity: 0.1
+	  },
+	  colors: THIS.colors
+	});
+      THIS.yaxis
+      var xaxisLabels = $('#dgraph div.graph > div.tickLabels > div.x1Axis');
+      $('<div class="tickLabel">'+THIS.xaxis.dim+'</div>').css('bottom','0px').css('text-align','center').css('font-weight','bold').appendTo(xaxisLabels);
+	for ( var i in THIS.yaxes ) {
+	  var yaxisLabels = $('#dgraph div.graph > div.tickLabels > div.y'+(1+parseInt(i))+'Axis');
+	  var label = yaxisLabels.find('>div:last').clone();
+	  label.text(THIS.yaxes[i].dim).css('top','-19px').css('font-weight','bold').appendTo(yaxisLabels);
+	}
+      // gen link
+      var check = '';
+	$('#dgraph div.cc input[type="checkbox"]:checked').each(function (){
+	  check += '&' + $(this).attr('name') + '=' + $(this).val();
+	});
+      var t = $('#dgraph textarea.data').val()
+      var link=location.protocol+'//'+location.host+location.pathname+'?d='+encodeURIComponent(t)+check;
+	$('#dgraph a.link').attr('href',link).text('this graph');
+
+    }
+    THIS.json = json;
+    var xaxisBase = {
+      dim: '',
+      tickFormatter:function(v,o){ return v.toFixed(0); },
+      mode: null
+    };
+    THIS.xaxis=$.extend({},xaxisBase,THIS.json.xaxis);
+
+    THIS.yaxes=[];
+    var yaxisBase = {
+      dim: '',
+      tickFormatter:function(v,o){ return v.toFixed(0); },
+      tickDecimals:1,
+      reserveSpace:true,
+      labelWidth :40,
+      alignTicksWithAxis: 1
+    };
+    for ( var i in THIS.json.datas ) {
+      var yaxis = [];
+      var n = parseInt(THIS.json.datas[i].yaxis)-1;
+      var max = null;
+      var min = null;
+      for( var k in THIS.json.datas[i] ) {
+	if ( k === 'data' ) {
+//	  for ( var d in THIS.json.datas[i].data){
+//	    if ( max === null || THIS.json.datas[i].data[d][1] > max ) {
+//	      max = THIS.json.datas[i].data[d][1];
+//	    }
+//	    if ( min === null || THIS.json.datas[i].data[d][1] < min ) {
+//	      min = THIS.json.datas[i].data[d][1];
+//	    }
+//	  }
+	}else{
+	  yaxis[k] = THIS.json.datas[i][k];
+	}
+      }
+      THIS.yaxes[n]=$.extend({max:max,min:min},yaxisBase,yaxis);
+    }
+
+    // colors
+    THIS.colors = [];
+    var c=0x808080;
+    var cctbody = $('<tbody></tbody>').appendTo($('<table></table>').appendTo('#dgraph div.cc'));
+    for( var i in json.datas ) {
+      c += 0x654321;
+      THIS.colors.push('#'+c.toString(16).substring(0,6));
+      var n = 'cc_'+i;
+        $('<tr><td><span><span style="background-color: #' + c.toString(16).substring(0,6) + '"width="8px">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span> </td><td><input id="'+n+'" type="checkbox" checked="checked" idx="'+i+'" name="'+n+'"></input></td><td><label for="'+n+'" ><div class="sname">'+THIS.json.datas[i].label+' ('+THIS.json.datas[i].dim+')'+'</div><span class="name">'+((THIS.json.datas[i].label2)?THIS.json.datas[i].label2:THIS.json.datas[i].label)+' ('+THIS.json.datas[i].dim+')'+'</span></label></td></tr>').appendTo(cctbody);
+    }
+      $('#dgraph div.cc input[type="checkbox"]').change(function(ev){
+	THIS.draw();
+      });
+
+      $('#dgraph div.graph').bind('plotselected',function(ev,ranges){
+	THIS.ranges.min = ranges.xaxis.from;
+	THIS.ranges.max = ranges.xaxis.to;
+      });
+      $('#dgraph button.bc').click(function(ev){
+	THIS.ranges = {max:undefined,min:undefined};
+	THIS.draw();
+      });
+      $('#dgraph button.bz').click(function(ev){
+	THIS.draw();
+      });
+      $('#dgraph div.graph').bind("plothover", function (event, pos, item) {
+	if (item) {
+          if (THIS.previousDataIndex !== item.dataIndex || THIS.previousSeriesIndex !== item.seriesIndex ) {
+            THIS.previousDataIndex = item.dataIndex;
+            THIS.previousSeriesIndex = item.seriesIndex;
+              $('#dgraphtt').remove();
+            var x = item.series.xaxis.tickFormatter(item.datapoint[0]);
+            var y = item.series.yaxis.tickFormatter(item.datapoint[1]);
+              $('<div id="dgraphtt">' + item.series.label + '(' + y + ((item.series.yaxis.options.dim)?' '+item.series.yaxis.options.dim:'') + ') : '+ item.series.xaxis.options.label + ' ' + x +((item.series.xaxis.options.dim)?' '+item.series.xaxis.options.dim:'')+' </div>').css( {
+		position: 'absolute',
+		display: 'none',
+		top: item.pageY + 5,
+		left: item.pageX + 5,
+		border: '1px solid #fdd',
+		padding: '2px',
+		  'background-color': '#fee',
+		opacity: 0.80
+              }).appendTo("body").fadeIn(200);
+          }
+	  return;
+	}
+          $('#dgraphtt').remove();
+        THIS.previousDataIndex = null;
+        THIS.previousSeriesIndex = null;
+      });
+    // table
+    var table = $('<table></table>').appendTo('#dgraph div.list');
+    var tdata = [];
+    tdata['@H'] = [];
+    for ( var i in THIS.json.datas ) {
+      var n = parseInt(THIS.json.datas[i].yaxis)-1;
+      tdata['@H'][i] = THIS.json.datas[i].label;
+      for ( var d in THIS.json.datas[i].data ) {
+	var x = THIS.xaxis.tickFormatter(THIS.json.datas[i].data[d][0]);
+	if ( ! tdata[x]  ) {
+	  tdata[x] = [];
+	}
+	var y = THIS.yaxes[n].tickFormatter(THIS.json.datas[i].data[d][1]);
+	tdata[x][i] = y;
+      }
+    }
+
+    var tr = $('<tr><th></th></tr>').appendTo(table);
+    for ( var d in tdata['@H'] ) {
+	$('<th class="H"></th>').css('color',THIS.colors[d]).text(tdata['@H'][d]).appendTo(tr);
+    }
+    for ( var i in tdata ) {
+      if ( i === '@H' ) continue;
+      var tr = $('<tr></tr>').appendTo(table);
+      $('<th class="R"></th>').text(i).appendTo(tr);
+      for ( var d in tdata[i] ) {
+	$('<td></td>').text(tdata[i][d]).appendTo(tr);
+      }
+    }
+    THIS.draw();
+  }// plot
+  var argv=getUrlVars();
+  if ( argv['d'] ) {
+    $('#dgraph textarea.data').val(argv['d']);
+    delete( argv['d'] );
+    $('#dgraph input.go').click();
+    var checks = false;
+    for ( var i in argv ) {
+      if ( i.match(/^cc_/) ) {
+	if ( ! checks ) {
+	  checks = true;
+	    $('#dgraph div.cc input[type="checkbox"]').removeAttr('checked');
+	}
+	$('#'+i).attr('checked','checked');
+	$('#'+i).change();
+      }
+    }
+  }
+})
+-->
+</script>
+</body>
+</html>
+
+
+<!--
+{
+title:"MongoDB Insert performance",
+xaxis:{
+  label:'size',
+  //dim:  'byte',
+  tickFormatter: function(v,o){
+    if ( v === 1 ) {
+      return '400 B';
+    }else if  ( v === 2 ) {
+      return '4 KB';
+    }else if  ( v === 3 ) {
+      return '40 KB';
+    }else if  ( v === 4 ) {
+      return '400 KB';
+    }else if  ( v === 5 ) {
+      return '4 MB';
+    }
+    return '';
+  }
+},
+datas:[{
+  label:'Total',
+  yaxis:1,
+  dim: 'sec',
+  position: 'left',
+  data:[[1,3460],[2,1071],[3,871],[4,1025],[5,1229]]
+},{
+  label:'Recodes',
+  dim: 'rec/sec',
+  yaxis : 2,
+  position: 'left',
+  data:[[1,28902],[2,9337],[3,1148],[4,98],[5,8]]
+},{
+  label:'Throughput',
+  dim: 'MB/sec',
+  yaxis : 3,
+  position: 'right',
+  data:[[1,11],[2,36],[3,45],[4,40],[5,33]]
+},{
+  label:'CPU',
+  dim: '%',
+  yaxis : 4,
+  position: 'right',
+  data:[[1,100],[2,90],[3,40],[4,15],[5,10]]
+}]
+}
+
+
+
+{
+title:"MongoDB Update performance",
+xaxis:{
+  label:'size',
+  //dim:  'byte',
+  tickFormatter: function(v,o){
+    if ( v === 1 ) {
+      return '400 B';
+    }else if  ( v === 2 ) {
+      return '4 KB';
+    }else if  ( v === 3 ) {
+      return '40 KB';
+    }else if  ( v === 4 ) {
+      return '400 KB';
+    }else if  ( v === 5 ) {
+      return '4 MB';
+    }
+    return '';
+  }
+},
+
+datas:[{
+  label:'Total',
+  yaxis:1,
+  dim: 'sec',
+  position: 'left',
+  data:[[1,1901],[2,588],[3,528],[4,471],[5,61]]
+},{
+  label:'Recodes',
+  dim: 'rec/sec',
+  yaxis : 2,
+  position: 'left',
+  data:[[1,52604],[2,17007],[3,1894],[4,212],[5,164]]
+},{
+  label:'Target data',
+  dim: 'MB/sec',
+  yaxis : 3,
+  position: 'right',
+  data:[[1,20],[2,66],[3,74],[4,86],[5,656]]
+},{
+  label:'CPU',
+  dim: '%',
+  yaxis : 4,
+  position: 'right',
+  data:[[1,100],[2,83],[3,32],[4,26],[5,4]]
+}]
+}
+
+
+
+{
+title:"MongoDB Insert performance",
+xaxis:{
+  label:'size',
+  dim:  'byte',
+},
+datas:[{
+  label:'Total',
+  yaxis:1,
+  dim: 'sec',
+  position: 'left',
+  data:[[400,3460],[4080,1071],[40944,871],[425785,1025],[4194288,1229]]
+},{
+  label:'Recodes',
+  dim: 'rec/sec',
+  yaxis : 2,
+  position: 'left',
+  data:[[400,28902],[4080,9337],[40944,1148],[425785,98],[4194288,8]]
+},{
+  label:'Throughput',
+  dim: 'MB/sec',
+  yaxis : 3,
+  position: 'right',
+  data:[[400,11],[4080,36],[40944,45],[425785,40],[4194288,33]]
+},{
+  label:'CPU',
+  dim: '%',
+  yaxis : 4,
+  position: 'right',
+  data:[[400,100],[4080,90],[40944,40],[425785,15],[4194288,10]]
+}]
+}
+-->
