@@ -59,7 +59,7 @@ class Hanoi
   attr_accessor :n
 end
 
-N=4
+N=10
 hanoi = Hanoi.new(N)
 hanoi.dump
 hanoi.hanoi(N,'S','G','B')
@@ -86,26 +86,27 @@ class Hanoi2
   end
 end
 
-p hanoi2 = Hanoi2.new(5).hanoi2(1,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(2,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(3,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(4,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(5,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(6,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(7,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(8,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(9,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(10,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(11,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(12,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(13,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(14,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(15,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(16,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(28,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(29,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(30,'S','G','B')
-p hanoi2 = Hanoi2.new(5).hanoi2(31,'S','G','B')
+p hanoi2 = Hanoi2.new(10).hanoi2(1000,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(1,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(2,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(3,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(4,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(5,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(6,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(7,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(8,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(9,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(10,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(11,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(12,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(13,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(14,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(15,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(16,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(28,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(29,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(30,'S','G','B')
+#p hanoi2 = Hanoi2.new(5).hanoi2(31,'S','G','B')
 #p hanoi2 = Hanoi2.new(10).hanoi2(700,'S','G','B')
 #p hanoi2 = Hanoi2.new(10000).hanoi2(100000000000000000000,'S','G','B')
  
