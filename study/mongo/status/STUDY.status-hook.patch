@@ -1,0 +1,160 @@
+diff --git SConstruct SConstruct
+index 66f47bf..8e46f3d 100644
+--- SConstruct
++++ SConstruct
+@@ -510,6 +510,7 @@ elif os.sys.platform.startswith("linux"):
+ 
+     if static:
+         env.Append( LINKFLAGS=" -static " )
++    env.Append( LINKFLAGS=" -ldl " )
+ 
+ elif "sunos5" == os.sys.platform:
+      nix = True
+diff --git db/cmdline.h db/cmdline.h
+index 3669758..bb7c50a 100644
+--- db/cmdline.h
++++ db/cmdline.h
+@@ -122,6 +122,7 @@ namespace mongo {
+ 
+         SSLManager* sslServerManager; // currently leaks on close
+ #endif
++        string sthook;     // --sthook
+         
+         static void launchOk();
+ 
+diff --git db/db.cpp db/db.cpp
+index ea32dd4..573be10 100644
+--- db/db.cpp
++++ db/db.cpp
+@@ -615,6 +615,7 @@ int main(int argc, char* argv[]) {
+ 
+     rs_options.add_options()
+     ("replSet", po::value<string>(), "arg is <setname>[/<optionalseedhostlist>]")
++    ("sthook", po::value<string>(), "specify a hook module name (default <function-name> is 'sthook') <hooklibrary-name>[/<function-name>[/<argument>]]")
+     ;
+ 
+     sharding_options.add_options()
+@@ -865,6 +866,9 @@ int main(int argc, char* argv[]) {
+             /* seed list of hosts for the repl set */
+             cmdLine._replSet = params["replSet"].as<string>().c_str();
+         }
++        if (params.count("sthook")) {
++          cmdLine.sthook = params["sthook"].as<string>().c_str();
++        }          
+         if (params.count("only")) {
+             cmdLine.only = params["only"].as<string>().c_str();
+         }
+diff --git db/repl/rs.cpp db/repl/rs.cpp
+index 967231d..1dab156 100644
+--- db/repl/rs.cpp
++++ db/repl/rs.cpp
+@@ -25,6 +25,11 @@
+ #include "connections.h"
+ #include "../repl.h"
+ #include "../instance.h"
++#if defined(_WIN32)
++#endif
++#if defined(__linux__) && defined(MONGO_EXPOSE_MACROS)
++#include <dlfcn.h>
++#endif
+ 
+ using namespace std;
+ 
+@@ -77,7 +82,68 @@ namespace mongo {
+         changeState(MemberState::RS_PRIMARY);
+     }
+ 
+-    void ReplSetImpl::changeState(MemberState s) { box.change(s, _self); }
++     void ReplSetImpl::doStateHook(MemberState s) { 
++        static string hookLib;
++        static string hookFunc;
++        static string hookArg;
++        if ( sthook.empty() ){
++          return;
++        }
++        if ( hookLib.empty() ) {
++          string::size_type fpos = sthook.find("/");
++          hookLib  = sthook.substr(0,fpos);
++          hookFunc = "sthook";
++          if ( fpos != string::npos ) {
++            fpos++;
++            string::size_type apos = sthook.find("/",fpos);
++            hookFunc = sthook.substr(fpos,apos-fpos);
++            if ( apos != string::npos ) {
++              apos++;
++              hookArg = sthook.substr(apos);
++            }
++          }
++        }
++        static stateHook_t f;
++#if defined(__linux__)
++        static void * h;
++        if ( ! h ) {
++            h = dlopen(hookLib.c_str(),RTLD_NOW | RTLD_LOCAL);
++            if ( ! h ) {
++                log() << "could not load hook-library " << dlerror() << rsLog;
++                return;
++            }
++            f = reinterpret_cast<stateHook_t>(dlsym(h,hookFunc.c_str()));
++            if ( ! f ) {
++                log() << "could not find hook-function " << dlerror() << rsLog;
++                return; 
++            }
++        }
++#endif
++#if defined(_WIN32)
++        static HMODULE h;
++        if ( ! h ){
++            h = LoadLibrary(hookLib.c_str());
++            if ( ! h ) {
++                log() << "could not load hook-library errno=" << GetLastError() << rsLog;
++                return;
++            }
++            f = reinterpret_cast<stateHook_t>(GetProcAddress(h,hookFunc.c_str()));
++            if ( ! f ) {
++                log() << "could not find hook-function errno=" << GetLastError() << rsLog;
++                return; 
++            }
++        }
++#endif
++        if ( f ) {
++            f(name().c_str(),((_self)?_self->fullName().c_str():0),s.toString().c_str(),hookArg.c_str());
++        }
++     }
++
++
++    void ReplSetImpl::changeState(MemberState s) { 
++      doStateHook(s);
++      box.change(s, _self);
++    }
+ 
+     void ReplSetImpl::setMaintenanceMode(const bool inc) {
+         lock lk(this);
+@@ -340,6 +406,8 @@ namespace mongo {
+         memset(_hbmsg, 0, sizeof(_hbmsg));
+         strcpy( _hbmsg , "initial startup" );
+         lastH = 0;
++
++        sthook = cmdLine.sthook;
+         changeState(MemberState::RS_STARTUP);
+ 
+         _seeds = &replSetCmdline.seeds;
+diff --git db/repl/rs.h db/repl/rs.h
+index 860aa9f..2034de5 100644
+--- db/repl/rs.h
++++ db/repl/rs.h
+@@ -342,7 +342,13 @@ namespace mongo {
+         void assumePrimary();
+         void loadLastOpTimeWritten(bool quiet=false);
+         void changeState(MemberState s);
+-        
++        string sthook;
++        void doStateHook(MemberState s);
++#if defined(_WIN32)
++        typedef void WINAPI (*stateHook_t)(const char * repset,const char * name,const char *status,const char * argarg);
++#else
++        typedef void        (*stateHook_t)(const char * repset,const char * name,const char *status,const char * argarg);
++#endif
+         /**
+          * Find the closest member (using ping time) with a higher latest optime.
+          */
