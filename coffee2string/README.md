@@ -108,12 +108,50 @@ run
 
 
 ## やらなきゃいけない事
-1. class実装
-2. 循環参照問題
-3. coffee特有の対応
+1. serializeする必要のないJS実装を除外
+2. class実装
+3. 循環参照問題
+4. coffee特有の対応
 
 
+### 1. serializeする必要のないJS実装を除外
+https://github.com/crumbjp/test/blob/master/coffee2string/coffee2string.coffee#L3
+- __defineGetter__
+- __defineSetter__
+- __lookupGetter__
+- __lookupSetter__
+- constructor
+- hasOwnProperty
+- isPrototypeOf
+- propertyIsEnumerable
+- toLocaleString
+- toString
+- valueOf
+- apply
+- arguments
+- bind
+- call
+- caller
+- length
+- name
+- prototype
 
+### 2. class実装
+https://github.com/crumbjp/test/blob/master/coffee2string/coffee2string.coffee#L89
+`__super__` はcoffeeの独自実装で、superクラスがそのまま入っている
+
+### 3. 循環参照問題
+https://github.com/crumbjp/test/blob/master/coffee2string/coffee2string.coffee#L44
+Objectをトラバースする際、Objectを発見したら全て変数に起き直す
+循環参照を発見したら、同じ参照を置いておけば良い。
+https://github.com/crumbjp/test/blob/master/coffee2string/coffee2string.coffee#L72
+
+### 4. coffee特有の対応
+おまじないを置いておく必要がある
+https://github.com/crumbjp/test/blob/master/coffee2string/coffee2string.coffee#L35
+
+
+## 結果
 ```js
 coffee2string = require './coffee2string'
 jsString = coffee2string Foo
@@ -156,3 +194,7 @@ Foo.prototype['run'] = function () {
 
 Foo::bar
 ```
+
+## 残課題
+`require`問題が残っている
+結局、erlangの様に言語レベルでRPCが想定されていない限り、ある程度のお約束事を規定するしか無いようだ。
